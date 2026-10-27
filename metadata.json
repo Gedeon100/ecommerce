@@ -1,0 +1,6 @@
+{
+  "name": "BéninMarket — Marketplace Multivendeurs COD",
+  "description": "Plateforme e-commerce multivendeurs avec boutiques indépendantes, gestion de produits, commandes sans carte bancaire et paiement sécurisé 100% à la livraison (Cash on Delivery).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
