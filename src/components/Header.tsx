@@ -44,22 +44,30 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuthModal,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showBuyerMenu, setShowBuyerMenu] = useState(false);
+  const [showSellerMenu, setShowSellerMenu] = useState(false);
 
   const isPasteurKazotti = currentUser?.email === 'pasteurkazotti@gmail.com' || currentUser?.role === 'admin';
   const isBuyerSpace = activeView !== 'seller' && activeView !== 'admin';
   const isSellerSpace = activeView === 'seller';
   const isAdminSpace = activeView === 'admin';
 
+  const handleBuyerSpaceClick = () => {
+    if (currentUser?.role === 'customer') {
+      onNavigate('customer');
+      return;
+    }
+    setShowBuyerMenu(!showBuyerMenu);
+    setShowSellerMenu(false);
+  };
+
   const handleSellerSpaceClick = () => {
-    if (!currentUser) {
-      onOpenAuthModal?.('login');
+    if (currentUser?.role === 'seller') {
+      onNavigate('seller');
       return;
     }
-    if (currentUser.role !== 'seller' && currentUser.role !== 'admin') {
-      onOpenAuthModal?.('register_seller');
-      return;
-    }
-    onNavigate('seller');
+    setShowSellerMenu(!showSellerMenu);
+    setShowBuyerMenu(false);
   };
 
   return (
@@ -181,35 +189,168 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 3: Distinct Espace Switcher & Actions */}
         <div className="flex items-center gap-2.5 shrink-0">
-          {/* Dual Space Segmented Control: Espace Acheteur / Espace Vendeur */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+          {/* Dual Space Portals: Espace Acheteur & Espace Vendeur */}
+          {/* 1. ESPACE ACHETEUR PORTAL */}
+          <div className="relative">
             <button
-              onClick={() => onNavigate('home')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              onClick={handleBuyerSpaceClick}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
                 isBuyerSpace
-                  ? 'bg-white text-slate-950 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-950 shadow-xs'
+                  : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
               }`}
-              title="Naviguer en tant qu'acheteur (consulter tous les articles et commander)"
+              title="Portail Acheteurs (Commander, Suivi de colis, Inscription & Connexion)"
             >
-              <ShoppingBag className={`w-3.5 h-3.5 ${isBuyerSpace ? 'text-amber-600' : 'text-slate-400'}`} />
+              <ShoppingBag className={`w-3.5 h-3.5 ${isBuyerSpace ? 'text-amber-600' : 'text-slate-500'}`} />
               <span className="hidden sm:inline">Espace</span>
               <span>Acheteur</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
+            {showBuyerMenu && (
+              <div className="absolute left-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 text-xs space-y-1">
+                <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Espace Acheteurs
+                </div>
+
+                {currentUser?.role === 'customer' ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowBuyerMenu(false);
+                        onNavigate('customer');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-amber-50 rounded-lg font-semibold text-slate-800 flex items-center gap-2 cursor-pointer"
+                    >
+                      <UserIcon className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Mon Compte Client ({currentUser.firstName || currentUser.name.split(' ')[0]})</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowBuyerMenu(false);
+                        onNavigate('home');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-lg text-slate-700 flex items-center gap-2 cursor-pointer"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Explorer tous les produits</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowBuyerMenu(false);
+                        onOpenAuthModal?.('login');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-amber-50 rounded-lg font-bold text-slate-900 flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <UserIcon className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Connexion Acheteur</span>
+                      </div>
+                      <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold">Déjà inscrit</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowBuyerMenu(false);
+                        onOpenAuthModal?.('register_buyer');
+                      }}
+                      className="w-full text-left px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 rounded-lg font-bold flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Inscription Acheteur</span>
+                      </div>
+                      <span className="text-[10px] text-amber-700 font-semibold">Gratuit</span>
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() => {
+                    setShowBuyerMenu(false);
+                    onOpenTrack();
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-lg text-slate-700 flex items-center gap-2 border-t border-slate-100 cursor-pointer"
+                >
+                  <Package className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Suivre ma commande en direct</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 2. ESPACE VENDEUR PORTAL */}
+          <div className="relative">
             <button
               onClick={handleSellerSpaceClick}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
                 isSellerSpace
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-amber-600 border-amber-600 text-white shadow-xs'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-900 hover:bg-amber-500/20'
               }`}
-              title="Accéder à l'espace vendeur (gérer ses articles et voir les clients qui ont commandé)"
+              title="Portail Vendeurs (Gérer mes produits, commandes reçues, inscription boutique)"
             >
-              <StoreIcon className={`w-3.5 h-3.5 ${isSellerSpace ? 'text-white' : 'text-slate-400'}`} />
+              <StoreIcon className={`w-3.5 h-3.5 ${isSellerSpace ? 'text-white' : 'text-amber-700'}`} />
               <span className="hidden sm:inline">Espace</span>
               <span>Vendeur</span>
+              <ChevronDown className={`w-3 h-3 ${isSellerSpace ? 'text-white/80' : 'text-amber-700/80'}`} />
             </button>
+
+            {showSellerMenu && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 text-xs space-y-1">
+                <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Espace Vendeurs & Boutiques
+                </div>
+
+                {currentUser?.role === 'seller' ? (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowSellerMenu(false);
+                        onNavigate('seller');
+                      }}
+                      className="w-full text-left px-3 py-2 bg-amber-50 hover:bg-amber-100 rounded-lg font-bold text-amber-900 flex items-center gap-2 cursor-pointer"
+                    >
+                      <StoreIcon className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Mon Tableau de bord Vendeur</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowSellerMenu(false);
+                        onOpenAuthModal?.('login');
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-amber-50 rounded-lg font-bold text-slate-900 flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <StoreIcon className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Connexion Vendeur</span>
+                      </div>
+                      <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold">Ma Boutique</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowSellerMenu(false);
+                        onOpenAuthModal?.('register_seller');
+                      }}
+                      className="w-full text-left px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold flex items-center justify-between cursor-pointer shadow-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <StoreIcon className="w-3.5 h-3.5" />
+                        <span>Créer ma boutique</span>
+                      </div>
+                      <span className="text-[10px] text-amber-100 bg-white/20 px-1.5 py-0.5 rounded font-bold">0 frais</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* If Super Admin is logged in, show their private dashboard button */}
@@ -229,13 +370,13 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           )}
 
-          {/* User Account / Auth Trigger */}
-          {currentUser ? (
+          {/* Active User Account Pill if logged in */}
+          {currentUser && (
             <div className="relative">
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                title="Profil actif"
+                title="Mon Profil"
               >
                 <UserIcon className="w-3.5 h-3.5 text-slate-600" />
                 <span className="font-semibold text-slate-800 max-w-[80px] sm:max-w-[110px] truncate">
@@ -270,7 +411,7 @@ export const Header: React.FC<HeaderProps> = ({
                           setShowUserDropdown(false);
                           onNavigate('seller');
                         }}
-                        className="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center gap-2 text-slate-800 font-semibold"
+                        className="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center gap-2 text-slate-800 font-semibold cursor-pointer"
                       >
                         <StoreIcon className="w-3.5 h-3.5 text-amber-600" />
                         <span>Mon Tableau de Bord Vendeur</span>
@@ -279,12 +420,12 @@ export const Header: React.FC<HeaderProps> = ({
                       <button
                         onClick={() => {
                           setShowUserDropdown(false);
-                          onOpenTrack();
+                          onNavigate('customer');
                         }}
-                        className="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center gap-2 text-slate-800 font-semibold"
+                        className="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center gap-2 text-slate-800 font-semibold cursor-pointer"
                       >
                         <Package className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Mes Commandes & Suivis</span>
+                        <span>Mon Espace Client & Commandes</span>
                       </button>
                     )}
 
@@ -293,7 +434,7 @@ export const Header: React.FC<HeaderProps> = ({
                         setShowUserDropdown(false);
                         onOpenCustomerService?.();
                       }}
-                      className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700"
+                      className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-700 cursor-pointer"
                     >
                       <Mail className="w-3.5 h-3.5 text-slate-500" />
                       <span>Écrire au Responsable (kgmservices229@gmail.com)</span>
@@ -308,7 +449,7 @@ export const Header: React.FC<HeaderProps> = ({
                           setShowUserDropdown(false);
                           onNavigate('admin');
                         }}
-                        className="w-full text-left px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 font-bold text-xs transition-colors"
+                        className="w-full text-left px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 font-bold text-xs transition-colors cursor-pointer"
                       >
                         <ShieldCheck className="w-4 h-4 text-emerald-200" />
                         <span>Base de Données Globale</span>
@@ -332,21 +473,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => onOpenAuthModal?.('login')}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              >
-                Connexion
-              </button>
-              <button
-                onClick={() => onOpenAuthModal?.('register_buyer')}
-                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs hidden sm:inline-block"
-              >
-                Inscription
-              </button>
             </div>
           )}
 

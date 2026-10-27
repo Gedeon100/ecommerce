@@ -16,6 +16,8 @@ import {
   Clock,
   MapPin,
   ChevronRight,
+  FileText,
+  Quote,
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 
@@ -406,17 +408,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </div>
 
         {/* Tab section: Description vs Customer Reviews */}
+        {/* Tab section: Description vs Customer Reviews & Testimonials */}
         <div className="border-t border-slate-200 px-6 py-4 bg-slate-50/50">
           <div className="flex items-center gap-4 border-b border-slate-200 pb-2 mb-4 text-xs font-semibold">
             <button
               onClick={() => setReviewTab('details')}
-              className={`pb-1 transition-colors ${
+              className={`pb-1 transition-colors flex items-center gap-1.5 ${
                 reviewTab === 'details'
                   ? 'border-b-2 border-amber-600 text-amber-800'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              Description & Caractéristiques
+              <FileText className="w-3.5 h-3.5" />
+              <span>Description & Fiche technique</span>
             </button>
             <button
               onClick={() => setReviewTab('reviews')}
@@ -426,53 +430,125 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              <span>Avis clients vérifiés ({reviews.length})</span>
+              <Quote className="w-3.5 h-3.5" />
+              <span>
+                Témoignages & Avis ({((product.testimonials?.length || 0) + reviews.length)})
+              </span>
             </button>
           </div>
 
           {reviewTab === 'details' ? (
-            <div className="space-y-4 text-xs text-slate-700 leading-relaxed max-h-48 overflow-y-auto">
-              <p>{product.description}</p>
-              {product.deliveryInfo && (
-                <div className="p-3 bg-white rounded-lg border border-slate-200">
-                  <span className="font-semibold text-slate-900">Conditionnement & Livraison : </span>
-                  {product.deliveryInfo}
-                </div>
-              )}
-              {product.dimensions && (
-                <p>
-                  <strong>Dimensions :</strong> {product.dimensions} | <strong>Poids :</strong>{' '}
-                  {product.weightKg ? `${product.weightKg} kg` : 'N/A'}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4 max-h-56 overflow-y-auto text-xs">
-              {reviews.length === 0 ? (
-                <p className="text-slate-500 italic">
-                  Aucun avis pour l'instant. Soyez le premier client à partager votre expérience après livraison !
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {reviews.map((r) => (
-                    <div key={r.id} className="p-3 bg-white rounded-lg border border-slate-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-slate-800">{r.customerName}</span>
-                        <div className="flex text-amber-400">
-                          {Array.from({ length: r.rating }).map((_, i) => (
-                            <Star key={i} className="w-3 h-3 fill-current" />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-slate-600">{r.comment}</p>
-                    </div>
-                  ))}
+            <div className="space-y-3.5 text-xs text-slate-700 leading-relaxed max-h-56 overflow-y-auto pr-1">
+              {/* Detailed Description created by Seller */}
+              {product.detailedDescription && (
+                <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200/80">
+                  <div className="flex items-center gap-1.5 mb-2 text-amber-950 font-semibold">
+                    <FileText className="w-4 h-4 text-amber-700" />
+                    <span>Présentation détaillée par la boutique</span>
+                  </div>
+                  <div className="text-slate-700 whitespace-pre-line leading-relaxed">
+                    {product.detailedDescription}
+                  </div>
                 </div>
               )}
 
+              {/* Standard product description */}
+              <div className="p-3 bg-white rounded-lg border border-slate-200">
+                <p>{product.description}</p>
+              </div>
+
+              {product.deliveryInfo && (
+                <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2">
+                  <Truck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-slate-900">Conditionnement & Livraison : </span>
+                    <span>{product.deliveryInfo}</span>
+                  </div>
+                </div>
+              )}
+
+              {product.dimensions && (
+                <div className="p-2.5 bg-slate-100 rounded-lg text-slate-600 flex items-center justify-between">
+                  <span><strong>Dimensions du colis :</strong> {product.dimensions}</span>
+                  <span><strong>Poids :</strong> {product.weightKg ? `${product.weightKg} kg` : 'N/A'}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-60 overflow-y-auto text-xs pr-1">
+              {/* Seller Curated Testimonials */}
+              {product.testimonials && product.testimonials.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                    <Quote className="w-3.5 h-3.5" />
+                    <span>Témoignages clients authentifiés ({product.testimonials.length})</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {product.testimonials.map((t) => (
+                      <div
+                        key={t.id}
+                        className="p-3 bg-gradient-to-br from-amber-50/70 to-white rounded-lg border border-amber-200/80 text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="font-semibold text-slate-900 flex items-center gap-1">
+                            <span>{t.author}</span>
+                            {t.city && (
+                              <span className="text-[10px] text-slate-500 font-normal">
+                                · {t.city}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex text-amber-500">
+                            {Array.from({ length: t.rating }).map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-current" />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-slate-700 italic">« {t.comment} »</p>
+                        <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+                          <span className="text-emerald-700 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Achat vérifié
+                          </span>
+                          <span>{t.date}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live Platform Customer Reviews */}
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1">
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Avis des acheteurs de la plateforme ({reviews.length})</span>
+                </div>
+                {reviews.length === 0 ? (
+                  <p className="text-slate-500 italic p-3 bg-white rounded-lg border border-slate-200">
+                    Aucun avis supplémentaire pour l'instant. Soyez le premier client à partager votre expérience après livraison !
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {reviews.map((r) => (
+                      <div key={r.id} className="p-3 bg-white rounded-lg border border-slate-200">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-slate-800">{r.customerName}</span>
+                          <div className="flex text-amber-400">
+                            {Array.from({ length: r.rating }).map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-current" />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-slate-600">{r.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Add review form */}
-              <form onSubmit={handleAddReview} className="pt-3 border-t border-slate-200 space-y-2">
-                <span className="font-semibold text-slate-800 block">Laisser un avis (Achat vérifié)</span>
+              <form onSubmit={handleAddReview} className="pt-3 border-t border-slate-200 space-y-2 bg-white p-3 rounded-lg border border-slate-100">
+                <span className="font-semibold text-slate-800 block">Laisser votre avis (Achat vérifié)</span>
                 {reviewSubmitted && (
                   <div className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded">
                     Merci ! Votre avis a été enregistré avec succès.
@@ -484,13 +560,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     required
                     value={newReviewAuthor}
                     onChange={(e) => setNewReviewAuthor(e.target.value)}
-                    placeholder="Votre nom"
-                    className="p-2 border border-slate-200 rounded text-xs bg-white"
+                    placeholder="Votre prénom et nom"
+                    className="p-2 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                   />
                   <select
                     value={newReviewRating}
                     onChange={(e) => setNewReviewRating(Number(e.target.value))}
-                    className="p-2 border border-slate-200 rounded text-xs bg-white"
+                    className="p-2 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                   >
                     <option value={5}>⭐⭐⭐⭐⭐ 5 étoiles (Excellent)</option>
                     <option value={4}>⭐⭐⭐⭐ 4 étoiles (Très bon)</option>
@@ -504,12 +580,12 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   rows={2}
                   value={newReviewText}
                   onChange={(e) => setNewReviewText(e.target.value)}
-                  placeholder="Votre avis sur la qualité du produit et la rapidité de la livraison..."
-                  className="w-full p-2 border border-slate-200 rounded text-xs bg-white"
+                  placeholder="Votre avis sur la qualité du produit, la finition et la livraison à domicile..."
+                  className="w-full p-2 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                 />
                 <button
                   type="submit"
-                  className="px-3 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 cursor-pointer"
+                  className="px-3.5 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 cursor-pointer"
                 >
                   Publier l'avis
                 </button>

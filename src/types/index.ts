@@ -64,6 +64,16 @@ export interface ProductVariant {
   options: string[]; // e.g. ["M", "L", "XL"] or ["Noir", "Bleu"]
 }
 
+export interface ProductTestimonial {
+  id: string;
+  author: string;
+  city?: string;
+  rating: number; // 1 to 5
+  comment: string;
+  date: string;
+  verified?: boolean;
+}
+
 export interface Product {
   id: string;
   storeId: string;
@@ -71,6 +81,8 @@ export interface Product {
   slug: string;
   description: string;
   shortDescription: string;
+  detailedDescription?: string; // Rich product presentation / description page
+  features?: string[]; // Caractéristiques et points forts du produit
   category: string;
   price: number; // Normal price in FCFA
   promoPrice?: number; // Promotional price in FCFA
@@ -88,6 +100,7 @@ export interface Product {
   salesCount: number;
   rating: number;
   reviewCount: number;
+  testimonials?: ProductTestimonial[]; // Témoignages clients sur le produit
   featured?: boolean;
   createdAt: string;
 }

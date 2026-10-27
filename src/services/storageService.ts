@@ -66,6 +66,24 @@ class StorageService {
       } catch (err) {
         // ignore
       }
+
+      // Sync initial testimonials and detailed description if missing
+      try {
+        const storedProds = this.getProducts();
+        let modified = false;
+        storedProds.forEach((p) => {
+          if (p.id === 'prod-wax-blazer' && !p.detailedDescription) {
+            p.detailedDescription = INITIAL_PRODUCTS[0].detailedDescription;
+            p.testimonials = INITIAL_PRODUCTS[0].testimonials;
+            modified = true;
+          }
+        });
+        if (modified) {
+          localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(storedProds));
+        }
+      } catch (err) {
+        // ignore
+      }
     }
   }
 

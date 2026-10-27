@@ -165,6 +165,34 @@ export const INITIAL_PRODUCTS: Product[] = [
     weightKg: 0.8,
     dimensions: '40 x 30 x 5 cm',
     deliveryInfo: 'Livré sous housse protectrice avec cintre en bois offert.',
+    detailedDescription: `★ GUIDE DU PRODUIT — Danxomè Créations
+- Matière principale : 100% Coton Wax hollandais véritable à trame serrée
+- Doublure : Satin soyeux anti-transpirant adapté au climat tropical
+- Coupe : Veste structurée avec épaulettes souples et revers châle satiné
+- Confection : Coutures doubles renforcées, confection artisanale dans nos ateliers à Cotonou
+- Conseils d'entretien : Lavage à sec recommandé ou à froid (30°C max) sans chlore.
+
+Idéal pour vos événements prestigieux, mariages, cocktails d'affaires ou cérémonies dominicales. Commandez en toute tranquillité : essayez et payez au livreur dès réception chez vous !`,
+    testimonials: [
+      {
+        id: 'test-1',
+        author: 'Arsène Gbaguidi',
+        city: 'Cotonou (Cadjehoun)',
+        rating: 5,
+        comment: 'La coupe est tout simplement impeccable ! Le tissu est de très haute qualité et ne déteint pas. Livré le lendemain même à mon bureau à Cadjehoun.',
+        date: '12 Mars 2026',
+        verified: true,
+      },
+      {
+        id: 'test-2',
+        author: 'Félicienne Houenou',
+        city: 'Porto-Novo',
+        rating: 5,
+        comment: 'J’ai commandé la taille L pour mon époux, tombé parfait. Le vendeur a été très réactif sur WhatsApp pour valider les mensurations.',
+        date: '28 Février 2026',
+        verified: true,
+      },
+    ],
     isPublished: true,
     salesCount: 47,
     rating: 4.9,

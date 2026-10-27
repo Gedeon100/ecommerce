@@ -270,12 +270,15 @@ export default function App() {
               
               <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 <div className="lg:col-span-7 space-y-6">
-                  {/* Zero-Pill Header Reassurance */}
-                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Marketplace Multivendeurs · Bénin</span>
-                    <span aria-hidden="true" className="text-slate-500">·</span>
-                    <span className="text-slate-300">Paiement 100% à la livraison</span>
+                  {/* First Text: Major platform stats requested */}
+                  <div className="inline-flex flex-wrap items-center gap-2 bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/20 border border-amber-400/40 text-amber-200 px-4 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg">
+                    <span className="flex h-2.5 w-2.5 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+                    </span>
+                    <span className="text-white">Plus de 20 000 utilisateurs</span>
+                    <span className="text-amber-400 font-normal">·</span>
+                    <span className="text-amber-300">Plus de 12 000 commandes traitées en 2026</span>
                   </div>
 
                   <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight text-white font-display">
@@ -283,7 +286,7 @@ export default function App() {
                   </h1>
 
                   <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
-                    Commandez sans carte bancaire ni prépaiement. Des créateurs de mode, vendeurs de gadgets et artisans livrent directement à votre domicile à Cotonou, Calavi, Porto-Novo et en province.
+                    Rejoignez plus de <strong>20 000 utilisateurs</strong> avec plus de <strong>12 000 commandes traitées en 2026</strong>. Commandez sans carte bancaire ni prépaiement : vos colis sont livrés chez vous à Cotonou, Calavi, Porto-Novo et partout au Bénin avec paiement 100% à la livraison.
                   </p>
 
                   {/* Reassurance Feature Highlights */}
@@ -294,11 +297,11 @@ export default function App() {
                     </div>
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
                       <Truck className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Livraison 24h - 48h</span>
+                      <span>Livraison à domicile</span>
                     </div>
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
                       <StoreIcon className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Vendeurs vérifiés</span>
+                      <span>Boutiques vérifiées</span>
                     </div>
                   </div>
 
@@ -312,11 +315,14 @@ export default function App() {
                       <ArrowRight className="w-4 h-4" />
                     </a>
                     <button
-                      onClick={() => setIsSellerRegOpen(true)}
+                      onClick={() => {
+                        setAuthModalMode('register_seller');
+                        setIsAuthModalOpen(true);
+                      }}
                       className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-xs sm:text-sm border border-white/20 transition-colors inline-flex items-center gap-2 cursor-pointer"
                     >
                       <StoreIcon className="w-4 h-4 text-amber-400" />
-                      <span>Créer ma boutique vendeur</span>
+                      <span>Créer ma boutique (Devenir Vendeur)</span>
                     </button>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Store, Product, Order, OrderStatus, ProductVariant } from '../../types';
+import { User, Store, Product, Order, OrderStatus, ProductVariant, ProductTestimonial } from '../../types';
 import { storageService } from '../../services/storageService';
 import { formatFCFA, formatDateFR, calculateDiscountPercent, ORDER_STATUS_CONFIG } from '../../utils/formatters';
 import {
@@ -25,6 +25,9 @@ import {
   Printer,
   ChevronRight,
   ExternalLink,
+  Star,
+  FileText,
+  MessageSquare,
 } from 'lucide-react';
 
 interface SellerDashboardProps {
@@ -86,6 +89,13 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [prodVideoUrl, setProdVideoUrl] = useState('');
   const [prodWeight, setProdWeight] = useState<number>(0.5);
   const [prodDimensions, setProdDimensions] = useState('30 x 20 x 5 cm');
+  const [prodDetailedDesc, setProdDetailedDesc] = useState('');
+  const [prodTestimonials, setProdTestimonials] = useState<ProductTestimonial[]>([]);
+  const [productModalTab, setProductModalTab] = useState<'general' | 'description' | 'testimonials'>('general');
+  const [newTestimonialAuthor, setNewTestimonialAuthor] = useState('');
+  const [newTestimonialCity, setNewTestimonialCity] = useState('Cotonou');
+  const [newTestimonialRating, setNewTestimonialRating] = useState(5);
+  const [newTestimonialComment, setNewTestimonialComment] = useState('');
   const [formError, setFormError] = useState('');
 
   // Status update state for orders
@@ -116,12 +126,36 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     setTimeout(() => setProfileSaved(false), 3000);
   };
 
+  const handleAddTestimonial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTestimonialAuthor.trim() || !newTestimonialComment.trim()) return;
+    const test: ProductTestimonial = {
+      id: `testi-${Date.now()}`,
+      author: newTestimonialAuthor.trim(),
+      city: newTestimonialCity,
+      rating: newTestimonialRating,
+      comment: newTestimonialComment.trim(),
+      date: new Date().toISOString(),
+      verified: true,
+    };
+    setProdTestimonials([...prodTestimonials, test]);
+    setNewTestimonialAuthor('');
+    setNewTestimonialComment('');
+  };
+
+  const handleRemoveTestimonial = (id: string) => {
+    setProdTestimonials(prodTestimonials.filter((t) => t.id !== id));
+  };
+
   const handleOpenAddProduct = () => {
     setEditingProduct(null);
     setProdName('');
     setProdCategory('Mode & Vêtements');
     setProdShortDesc('');
     setProdDesc('');
+    setProdDetailedDesc('');
+    setProdTestimonials([]);
+    setProductModalTab('general');
     setProdPrice(10000);
     setProdPromoPrice(undefined);
     setProdIsPromoActive(false);
@@ -140,6 +174,9 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     setProdCategory(p.category);
     setProdShortDesc(p.shortDescription);
     setProdDesc(p.description);
+    setProdDetailedDesc(p.detailedDescription || p.description || '');
+    setProdTestimonials(p.testimonials || []);
+    setProductModalTab('general');
     setProdPrice(p.price);
     setProdPromoPrice(p.promoPrice);
     setProdIsPromoActive(p.isPromoActive);
@@ -176,6 +213,8 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       slug: prodName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       shortDescription: prodShortDesc.trim() || prodName.trim(),
       description: prodDesc.trim() || prodName.trim(),
+      detailedDescription: prodDetailedDesc.trim() || undefined,
+      testimonials: prodTestimonials,
       category: prodCategory,
       price: Number(prodPrice),
       promoPrice: prodIsPromoActive && prodPromoPrice ? Number(prodPromoPrice) : undefined,
@@ -188,7 +227,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       isPublished: true,
       salesCount: editingProduct ? editingProduct.salesCount : 0,
       rating: editingProduct ? editingProduct.rating : 5.0,
-      reviewCount: editingProduct ? editingProduct.reviewCount : 0,
+      reviewCount: prodTestimonials.length > 0 ? prodTestimonials.length : (editingProduct ? editingProduct.reviewCount : 0),
       createdAt: editingProduct ? editingProduct.createdAt : new Date().toISOString(),
     };
 
@@ -909,6 +948,48 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               </button>
             </div>
 
+            {/* Modal Subtabs */}
+            <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-100 text-xs font-semibold p-1">
+              <button
+                type="button"
+                onClick={() => setProductModalTab('general')}
+                className={`py-2 px-2 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  productModalTab === 'general'
+                    ? 'bg-white text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5 text-amber-600" />
+                <span>1. Infos & Prix</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProductModalTab('description')}
+                className={`py-2 px-2 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  productModalTab === 'description'
+                    ? 'bg-white text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 text-amber-600" />
+                <span>2. Page Description</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProductModalTab('testimonials')}
+                className={`py-2 px-2 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  productModalTab === 'testimonials'
+                    ? 'bg-white text-slate-900 shadow-xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Star className="w-3.5 h-3.5 text-amber-600" />
+                <span>3. Témoignages ({prodTestimonials.length})</span>
+              </button>
+            </div>
+
             <form onSubmit={handleSaveProduct} className="overflow-y-auto p-6 space-y-4 text-xs">
               {formError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg flex items-center gap-2">
@@ -917,191 +998,371 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 </div>
               )}
 
-              {/* Name & Category */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Nom du produit *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Blazer en Wax Royal..."
-                    value={prodName}
-                    onChange={(e) => setProdName(e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Catégorie *</label>
-                  <select
-                    value={prodCategory}
-                    onChange={(e) => setProdCategory(e.target.value)}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  >
-                    <option value="Mode & Vêtements">Mode & Vêtements</option>
-                    <option value="Chaussures & Maroquinerie">Chaussures & Maroquinerie</option>
-                    <option value="Téléphones & Électronique">Téléphones & Électronique</option>
-                    <option value="Maison & Décoration">Maison & Décoration</option>
-                    <option value="Beauté, Karité & Cosmétiques">Beauté, Karité & Cosmétiques</option>
-                    <option value="Alimentation & Produits Locaux">Alimentation & Produits Locaux</option>
-                    <option value="Équipements & Accessoires">Équipements & Accessoires</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Pricing & Stock */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Prix normal (FCFA) *</label>
-                  <input
-                    type="number"
-                    required
-                    min={100}
-                    value={prodPrice}
-                    onChange={(e) => setProdPrice(Number(e.target.value))}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="font-semibold text-slate-700">Prix Promo (FCFA)</label>
-                    <label className="flex items-center gap-1 cursor-pointer">
+              {/* TAB 1: GENERAL & PRICING */}
+              {productModalTab === 'general' && (
+                <div className="space-y-4">
+                  {/* Name & Category */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Nom du produit *</label>
                       <input
-                        type="checkbox"
-                        checked={prodIsPromoActive}
-                        onChange={(e) => setProdIsPromoActive(e.target.checked)}
-                        className="accent-amber-600"
+                        type="text"
+                        required
+                        placeholder="Ex: Blazer en Wax Royal..."
+                        value={prodName}
+                        onChange={(e) => setProdName(e.target.value)}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
                       />
-                      <span className="text-[10px] text-amber-800 font-bold">Activer</span>
-                    </label>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Catégorie *</label>
+                      <select
+                        value={prodCategory}
+                        onChange={(e) => setProdCategory(e.target.value)}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      >
+                        <option value="Mode & Vêtements">Mode & Vêtements</option>
+                        <option value="Chaussures & Maroquinerie">Chaussures & Maroquinerie</option>
+                        <option value="Téléphones & Électronique">Téléphones & Électronique</option>
+                        <option value="Maison & Décoration">Maison & Décoration</option>
+                        <option value="Beauté, Karité & Cosmétiques">Beauté, Karité & Cosmétiques</option>
+                        <option value="Alimentation & Produits Locaux">Alimentation & Produits Locaux</option>
+                        <option value="Équipements & Accessoires">Équipements & Accessoires</option>
+                      </select>
+                    </div>
                   </div>
-                  <input
-                    type="number"
-                    disabled={!prodIsPromoActive}
-                    placeholder="Ex: 8500"
-                    value={prodPromoPrice || ''}
-                    onChange={(e) => setProdPromoPrice(e.target.value ? Number(e.target.value) : undefined)}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50"
-                  />
-                </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Quantité en stock *</label>
-                  <input
-                    type="number"
-                    required
-                    min={0}
-                    value={prodStock}
-                    onChange={(e) => setProdStock(Number(e.target.value))}
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
-                  />
-                </div>
-              </div>
+                  {/* Pricing & Stock */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Prix normal (FCFA) *</label>
+                      <input
+                        type="number"
+                        required
+                        min={100}
+                        value={prodPrice}
+                        onChange={(e) => setProdPrice(Number(e.target.value))}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
+                      />
+                    </div>
 
-              {/* Live Discount calculation notice */}
-              {prodIsPromoActive && prodPromoPrice && prodPromoPrice < prodPrice && (
-                <div className="p-2 bg-emerald-50 text-emerald-800 rounded text-[11px] font-semibold flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>
-                    Réduction automatique affichée aux clients : -{calculateDiscountPercent(prodPrice, prodPromoPrice)}%
-                  </span>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-semibold text-slate-700">Prix Promo (FCFA)</label>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={prodIsPromoActive}
+                            onChange={(e) => setProdIsPromoActive(e.target.checked)}
+                            className="accent-amber-600"
+                          />
+                          <span className="text-[10px] text-amber-800 font-bold">Activer</span>
+                        </label>
+                      </div>
+                      <input
+                        type="number"
+                        disabled={!prodIsPromoActive}
+                        placeholder="Ex: 8500"
+                        value={prodPromoPrice || ''}
+                        onChange={(e) => setProdPromoPrice(e.target.value ? Number(e.target.value) : undefined)}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold disabled:opacity-50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Quantité en stock *</label>
+                      <input
+                        type="number"
+                        required
+                        min={0}
+                        value={prodStock}
+                        onChange={(e) => setProdStock(Number(e.target.value))}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live Discount calculation notice */}
+                  {prodIsPromoActive && prodPromoPrice && prodPromoPrice < prodPrice && (
+                    <div className="p-2 bg-emerald-50 text-emerald-800 rounded text-[11px] font-semibold flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>
+                        Réduction automatique affichée aux clients : -{calculateDiscountPercent(prodPrice, prodPromoPrice)}%
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Photo & Video Presentation */}
+                  <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="font-bold text-slate-800 block">Médias du produit (Photos & Vidéo)</span>
+
+                    <div>
+                      <label className="block font-medium text-slate-600 mb-1">Lien de la photo principale (URL)</label>
+                      <input
+                        type="url"
+                        value={prodImages[0] || ''}
+                        onChange={(e) => setProdImages([e.target.value])}
+                        placeholder="https://..."
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-medium text-slate-600 mb-1">
+                        Lien d'une vidéo de présentation (MP4 ou lien direct)
+                      </label>
+                      <input
+                        type="url"
+                        value={prodVideoUrl}
+                        onChange={(e) => setProdVideoUrl(e.target.value)}
+                        placeholder="https://.../video.mp4"
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                      />
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        Permet aux clients de voir le produit en action avant de commander.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Delivery specifications */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Poids estimé (kg)</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={prodWeight}
+                        onChange={(e) => setProdWeight(Number(e.target.value))}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Dimensions colis</label>
+                      <input
+                        type="text"
+                        value={prodDimensions}
+                        onChange={(e) => setProdDimensions(e.target.value)}
+                        placeholder="Ex: 30 x 20 x 10 cm"
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Descriptions */}
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Brève description d'accroche</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Veste cintrée homme & femme en authentique Wax..."
-                  value={prodShortDesc}
-                  onChange={(e) => setProdShortDesc(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+              {/* TAB 2: RICH PRODUCT DESCRIPTION PAGE */}
+              {productModalTab === 'description' && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-950">
+                    <strong className="block font-bold mb-0.5 text-xs">Page de présentation détaillée du produit</strong>
+                    <p className="text-[11px] text-amber-900 leading-relaxed">
+                      Créez une véritable fiche descriptive : expliquez l'origine, les matériaux, les avantages pour l'acheteur, et les consignes d'utilisation ou d'entretien.
+                    </p>
+                  </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Description détaillée & Caractéristiques</label>
-                <textarea
-                  rows={3}
-                  placeholder="Composition, conseils d'utilisation, matières..."
-                  value={prodDesc}
-                  onChange={(e) => setProdDesc(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Brève phrase d'accroche (affichée sous le titre)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Authentique création béninoise tissée à la main, durable et élégante."
+                      value={prodShortDesc}
+                      onChange={(e) => setProdShortDesc(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium"
+                    />
+                  </div>
 
-              {/* Photo & Video Presentation */}
-              <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="font-bold text-slate-800 block">Photos et Vidéo du produit</span>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Description complète & Caractéristiques détaillées
+                    </label>
+                    <textarea
+                      rows={5}
+                      placeholder="Décrivez en détail votre produit : matière, finitions, taille, utilisation, pourquoi le client doit l'acheter..."
+                      value={prodDesc}
+                      onChange={(e) => setProdDesc(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block font-medium text-slate-600 mb-1">Lien de la photo principale (URL)</label>
-                  <input
-                    type="url"
-                    value={prodImages[0] || ''}
-                    onChange={(e) => setProdImages([e.target.value])}
-                    placeholder="https://..."
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
-                  />
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Page de description avancée & Fiche technique (optionnel)
+                    </label>
+                    <textarea
+                      rows={4}
+                      placeholder="Section technique ou histoire du produit : conseils d'entretien, guide des tailles, garantie fabricant..."
+                      value={prodDetailedDesc}
+                      onChange={(e) => setProdDetailedDesc(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: TESTIMONIALS & REVIEWS MANAGEMENT */}
+              {productModalTab === 'testimonials' && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950">
+                    <strong className="block font-bold mb-0.5 text-xs">Gestion des Témoignages & Avis Clients</strong>
+                    <p className="text-[11px] text-emerald-900 leading-relaxed">
+                      Ajoutez des retours d'expérience et témoignages de clients satisfaits. Ces avis augmentent fortement le taux de commande en paiement à la livraison.
+                    </p>
+                  </div>
+
+                  {/* Form to add a testimonial */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <span className="font-bold text-slate-900 block text-xs">Ajouter un nouveau témoignage client</span>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Nom du client *</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Roland AKOBI"
+                          value={newTestimonialAuthor}
+                          onChange={(e) => setNewTestimonialAuthor(e.target.value)}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Ville au Bénin</label>
+                        <select
+                          value={newTestimonialCity}
+                          onChange={(e) => setNewTestimonialCity(e.target.value)}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                        >
+                          <option value="Cotonou">Cotonou</option>
+                          <option value="Abomey-Calavi">Abomey-Calavi</option>
+                          <option value="Porto-Novo">Porto-Novo</option>
+                          <option value="Parakou">Parakou</option>
+                          <option value="Ouidah">Ouidah</option>
+                          <option value="Bohicon">Bohicon</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-700 mb-1">Note attribuée</label>
+                        <select
+                          value={newTestimonialRating}
+                          onChange={(e) => setNewTestimonialRating(Number(e.target.value))}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-amber-600"
+                        >
+                          <option value={5}>⭐⭐⭐⭐⭐ 5/5</option>
+                          <option value={4}>⭐⭐⭐⭐ 4/5</option>
+                          <option value={3}>⭐⭐⭐ 3/5</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Témoignage du client *</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Ex: Reçu en 24h à Cotonou, excellente qualité conforme aux photos. J'ai réglé le coursier à la réception sans problème !"
+                        value={newTestimonialComment}
+                        onChange={(e) => setNewTestimonialComment(e.target.value)}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddTestimonial}
+                      disabled={!newTestimonialAuthor.trim() || !newTestimonialComment.trim()}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter ce témoignage</span>
+                    </button>
+                  </div>
+
+                  {/* List of current testimonials */}
+                  <div className="space-y-2">
+                    <span className="font-bold text-slate-800 block text-xs">
+                      Témoignages configurés sur ce produit ({prodTestimonials.length}) :
+                    </span>
+                    {prodTestimonials.length === 0 ? (
+                      <p className="text-slate-400 italic text-[11px]">
+                        Aucun témoignage ajouté. Vous pouvez en ajouter ci-dessus.
+                      </p>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {prodTestimonials.map((t) => (
+                          <div key={t.id} className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-start justify-between gap-3 shadow-xs">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900">{t.author}</span>
+                                <span className="text-[10px] text-slate-500 font-medium">({t.city})</span>
+                                <div className="flex text-amber-500">
+                                  {Array.from({ length: t.rating }).map((_, i) => (
+                                    <Star key={i} className="w-3 h-3 fill-current" />
+                                  ))}
+                                </div>
+                                <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
+                                  ✓ Client vérifié
+                                </span>
+                              </div>
+                              <p className="text-slate-600 text-[11px] leading-relaxed">
+                                « {t.comment} »
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTestimonial(t.id)}
+                              className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 cursor-pointer shrink-0"
+                              title="Supprimer ce témoignage"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+                <div className="flex gap-2">
+                  {productModalTab !== 'general' && (
+                    <button
+                      type="button"
+                      onClick={() => setProductModalTab(productModalTab === 'testimonials' ? 'description' : 'general')}
+                      className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-700 font-semibold cursor-pointer"
+                    >
+                      Précédent
+                    </button>
+                  )}
+                  {productModalTab !== 'testimonials' && (
+                    <button
+                      type="button"
+                      onClick={() => setProductModalTab(productModalTab === 'general' ? 'description' : 'testimonials')}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-800 font-semibold cursor-pointer"
+                    >
+                      Suivant
+                    </button>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block font-medium text-slate-600 mb-1">
-                    Lien d'une vidéo de présentation (MP4 ou lien direct)
-                  </label>
-                  <input
-                    type="url"
-                    value={prodVideoUrl}
-                    onChange={(e) => setProdVideoUrl(e.target.value)}
-                    placeholder="https://.../video.mp4"
-                    className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
-                  />
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    Permet aux clients de voir le produit en action avant de commander.
-                  </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setProductModalOpen(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 font-semibold cursor-pointer"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors cursor-pointer shadow-sm"
+                  >
+                    {editingProduct ? 'Enregistrer les modifications' : 'Publier le produit'}
+                  </button>
                 </div>
-              </div>
-
-              {/* Delivery specifications */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Poids estimé (kg)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={prodWeight}
-                    onChange={(e) => setProdWeight(Number(e.target.value))}
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Dimensions colis</label>
-                  <input
-                    type="text"
-                    value={prodDimensions}
-                    onChange={(e) => setProdDimensions(e.target.value)}
-                    placeholder="Ex: 30 x 20 x 10 cm"
-                    className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setProductModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-700 font-semibold"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
-                >
-                  {editingProduct ? 'Enregistrer les modifications' : 'Publier le produit'}
-                </button>
               </div>
             </form>
           </div>

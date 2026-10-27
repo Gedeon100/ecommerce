@@ -156,16 +156,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const quickDemoLogin = (email: string, pass = '123') => {
-    setLoginIdentifier(email);
-    setLoginPassword(pass);
-    const res = storageService.loginUser(email, pass);
-    if (res.success && res.user) {
-      onAuthSuccess(res.user);
-      onClose();
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
@@ -179,7 +169,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
                 {mode === 'login' && 'Connexion à votre espace'}
                 {mode === 'register_buyer' && 'Inscription Espace Acheteur'}
-                {mode === 'register_seller' && 'Ouvrir ma boutique Vendeur (Alibaba Style)'}
+                {mode === 'register_seller' && 'Créer ma boutique Vendeur'}
               </h2>
               <p className="text-[11px] text-slate-300">
                 Paiement 100% à la livraison au Bénin · Espaces distincts sécurisés
@@ -237,7 +227,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}
           >
             <StoreIcon className="w-3.5 h-3.5" />
-            <span>Devenir Vendeur</span>
+            <span>Créer ma boutique</span>
           </button>
         </div>
 
@@ -328,38 +318,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{isSubmitting ? 'Connexion en cours...' : 'Se connecter à mon compte'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-
-              {/* 1-Click Fast Switch Demo Helper */}
-              <div className="pt-3 border-t border-slate-200">
-                <span className="text-[11px] font-bold text-slate-400 block mb-2 uppercase">
-                  Comptes de démonstration préconfigurés :
-                </span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => quickDemoLogin('bricemensah@gmail.com', '123')}
-                    className="p-2 border border-slate-200 hover:border-amber-400 rounded-lg text-left bg-slate-50 hover:bg-amber-50/50 transition-colors cursor-pointer"
-                  >
-                    <div className="font-bold text-slate-800 flex items-center gap-1 text-[11px]">
-                      <ShoppingBag className="w-3 h-3 text-amber-600" />
-                      <span>Brice (Acheteur)</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 truncate block">bricemensah@gmail.com</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => quickDemoLogin('aurelle@danxome.bj', '123')}
-                    className="p-2 border border-slate-200 hover:border-amber-400 rounded-lg text-left bg-slate-50 hover:bg-amber-50/50 transition-colors cursor-pointer"
-                  >
-                    <div className="font-bold text-slate-800 flex items-center gap-1 text-[11px]">
-                      <StoreIcon className="w-3 h-3 text-amber-600" />
-                      <span>Aurelle (Vendeur)</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 truncate block">aurelle@danxome.bj</span>
-                  </button>
-                </div>
-              </div>
             </form>
           )}
 
