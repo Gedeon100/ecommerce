@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Product, Store } from '../types';
 import { formatFCFA, calculateDiscountPercent } from '../utils/formatters';
 import { ShoppingCart, Star, Video, Eye, ShieldCheck, Tag } from 'lucide-react';
+import { mediaStorage } from '../services/mediaStorage';
 
 interface ProductCardProps {
   product: Product;
@@ -31,7 +32,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       >
         {!imageError && product.images?.[0] ? (
           <img
-            src={product.images[0]}
+            src={mediaStorage.resolveUrl(product.images[0])}
             alt={product.name}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}

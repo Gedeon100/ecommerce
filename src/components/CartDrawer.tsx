@@ -2,6 +2,7 @@ import React from 'react';
 import { CartItem, Store } from '../types';
 import { formatFCFA } from '../utils/formatters';
 import { X, Trash2, ShoppingBag, ShieldCheck, ArrowRight, Store as StoreIcon } from 'lucide-react';
+import { mediaStorage } from '../services/mediaStorage';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -101,7 +102,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     {storeItems.map((item) => (
                       <div key={item.id} className="flex gap-3 bg-white p-2.5 rounded-lg border border-slate-200/80">
                         <img
-                          src={item.productImage}
+                          src={mediaStorage.resolveUrl(item.productImage)}
                           alt={item.productName}
                           className="w-16 h-16 object-cover rounded-md shrink-0 bg-slate-100"
                         />

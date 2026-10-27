@@ -20,6 +20,7 @@ import {
   Quote,
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
+import { mediaStorage } from '../services/mediaStorage';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -132,7 +133,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {showVideo && product.videoUrl ? (
                 <div className="w-full h-full bg-black relative flex items-center justify-center">
                   <video
-                    src={product.videoUrl}
+                    src={mediaStorage.resolveUrl(product.videoUrl)}
                     controls
                     autoPlay
                     className="w-full h-full object-contain"
@@ -146,7 +147,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               ) : (
                 <img
-                  src={product.images[activeImageIndex] || product.images[0]}
+                  src={mediaStorage.resolveUrl(product.images[activeImageIndex] || product.images[0])}
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />
@@ -174,7 +175,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       : 'border-slate-200 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={mediaStorage.resolveUrl(img)} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
 
