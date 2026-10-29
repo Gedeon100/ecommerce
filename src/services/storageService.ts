@@ -18,6 +18,7 @@ import {
   INITIAL_PRODUCTS,
   INITIAL_ORDERS,
   INITIAL_SETTINGS,
+  INITIAL_REVIEWS,
   DEFAULT_DELIVERY_ZONES,
 } from '../data/initialData';
 import { generateOrderId } from '../utils/formatters';
@@ -132,19 +133,47 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(INITIAL_STORES));
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
       localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(INITIAL_ORDERS));
-      localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(INITIAL_REVIEWS));
       localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify([]));
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
       localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
     } else {
-      // Sync Super Admin identity to Pasteur Kazotti
+      // Sync Owner Admin identity to kazottimahutondj@gmail.com
       try {
         const users = this.getUsers();
-        const adminIdx = users.findIndex((u) => u.role === 'admin');
-        if (adminIdx >= 0 && users[adminIdx].email !== 'pasteurkazotti@gmail.com') {
-          users[adminIdx].email = 'pasteurkazotti@gmail.com';
-          users[adminIdx].name = 'Pasteur Kazotti (Fondateur & Super Admin)';
+        const adminIdx = users.findIndex((u) => u.role === 'admin' || u.email?.toLowerCase() === 'kazottimahutondj@gmail.com');
+        if (adminIdx >= 0) {
+          if (
+            users[adminIdx].email !== 'kazottimahutondj@gmail.com' ||
+            users[adminIdx].password !== 'Samuell@8' ||
+            users[adminIdx].role !== 'admin'
+          ) {
+            users[adminIdx].email = 'kazottimahutondj@gmail.com';
+            users[adminIdx].password = 'Samuell@8';
+            users[adminIdx].role = 'admin';
+            users[adminIdx].name = 'Propriétaire BéninMarket (Administrateur)';
+            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+          }
+        } else {
+          users.unshift({
+            id: 'user-admin',
+            name: 'Propriétaire BéninMarket (Administrateur)',
+            email: 'kazottimahutondj@gmail.com',
+            password: 'Samuell@8',
+            phone: '+229 97 00 11 22',
+            whatsapp: '+229 97 00 11 22',
+            role: 'admin',
+            createdAt: new Date().toISOString(),
+          });
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        }
+        const current = this.getCurrentUser();
+        if (current?.role === 'admin' && current.email?.toLowerCase() !== 'kazottimahutondj@gmail.com') {
+          localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        }
+        const existingReviews = this.getReviews();
+        if (existingReviews.length === 0) {
+          localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(INITIAL_REVIEWS));
         }
       } catch (err) {
         // ignore
@@ -310,38 +339,66 @@ class StorageService {
 
   public loginUser(identifier: string, password?: string): { success: boolean; user?: User; error?: string } {
     const users = this.getUsers();
-    const cleanId = identifier.trim().toLowerCase();
-    const cleanPhone = identifier.replace(/[^0-9]/g, '');
+    const cleanId = (identifier || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+    const cleanPhone = (identifier || '').replace(/[^0-9]/g, '');
 
-    // Allow Pasteur Kazotti master access
-    if (cleanId === 'pasteurkazotti@gmail.com' || cleanId === 'pasteurkazotti') {
-      let admin = users.find((u) => u.email === 'pasteurkazotti@gmail.com' || u.role === 'admin');
+    // Strict Owner Administrator authentication: kazottimahutondj@gmail.com / Samuell@8
+    if (cleanId === 'kazottimahutondj@gmail.com') {
+      if (cleanPass !== 'Samuell@8') {
+        return { success: false, error: 'Mot de passe administrateur incorrect.' };
+      }
+      let admin = users.find((u) => u.email.toLowerCase() === 'kazottimahutondj@gmail.com' || u.role === 'admin');
       if (!admin) {
         admin = {
           id: 'user-admin',
-          name: 'Pasteur Kazotti (Fondateur & Super Admin)',
-          email: 'pasteurkazotti@gmail.com',
+          name: 'Propriétaire BéninMarket (Administrateur)',
+          email: 'kazottimahutondj@gmail.com',
+          password: 'Samuell@8',
           phone: '+229 97 00 11 22',
           whatsapp: '+229 97 00 11 22',
           role: 'admin',
           createdAt: new Date().toISOString(),
         };
-        users.push(admin);
-        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        users.unshift(admin);
+      } else {
+        admin.email = 'kazottimahutondj@gmail.com';
+        admin.password = 'Samuell@8';
+        admin.role = 'admin';
+        admin.name = 'Propriétaire BéninMarket (Administrateur)';
       }
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
       this.setCurrentUser(admin);
       return { success: true, user: admin };
     }
 
     const matched = users.find((u) => {
+      if (u.role === 'admin') return false;
       const matchEmail = u.email.toLowerCase() === cleanId;
       const matchPhone = cleanPhone.length > 6 && u.phone.replace(/[^0-9]/g, '').includes(cleanPhone);
       return matchEmail || matchPhone;
     });
 
     if (matched) {
-      if (password && matched.password && matched.password !== password) {
+      if (cleanPass && matched.password && matched.password !== cleanPass) {
         return { success: false, error: 'Mot de passe incorrect pour ce compte.' };
+      }
+      if (matched.isBlocked) {
+        return {
+          success: false,
+          error: 'Ce compte vendeur a été bloqué par l’administrateur de BéninMarket.',
+        };
+      }
+      if (matched.role === 'seller') {
+        const sellerStore = this.getStores().find(
+          (s) => s.id === matched.storeId || s.sellerId === matched.id
+        );
+        if (sellerStore?.isBlocked) {
+          return {
+            success: false,
+            error: `La boutique « ${sellerStore.name} » est actuellement bloquée par l’administrateur (${sellerStore.blockReason || 'Suspension administrative'}).`,
+          };
+        }
       }
       this.setCurrentUser(matched);
       return { success: true, user: matched };
@@ -376,6 +433,113 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
       this.notify();
     }
+  }
+
+  public toggleStoreBlock(storeId: string, block: boolean, reason?: string): Store | null {
+    const stores = this.getStores();
+    const idx = stores.findIndex((s) => s.id === storeId);
+    if (idx === -1) return null;
+
+    const targetStore = stores[idx];
+    const updatedStore: Store = {
+      ...targetStore,
+      isBlocked: block,
+      blockReason: block ? (reason?.trim() || 'Suspension administrative par le propriétaire') : undefined,
+      blockedAt: block ? new Date().toISOString() : undefined,
+    };
+    stores[idx] = updatedStore;
+    localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+
+    // Sync seller user account blocked flag
+    const users = this.getUsers();
+    let usersModified = false;
+    users.forEach((u) => {
+      if (u.role === 'seller' && (u.id === targetStore.sellerId || u.storeId === storeId)) {
+        u.isBlocked = block;
+        usersModified = true;
+      }
+    });
+    if (usersModified) {
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    }
+
+    // Remove blocked store's items from active buyer cart and sign out seller if active
+    if (block) {
+      const cart = this.getCart().filter((item) => item.storeId !== storeId);
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+
+      const current = this.getCurrentUser();
+      if (current?.role === 'seller' && (current.id === targetStore.sellerId || current.storeId === storeId)) {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      }
+    }
+
+    this.notify();
+    return updatedStore;
+  }
+
+  public deleteSellerAndStore(storeId: string): {
+    deletedStoreName: string;
+    deletedSellerName: string;
+    deletedProductsCount: number;
+  } {
+    const stores = this.getStores();
+    const targetStore = stores.find((s) => s.id === storeId);
+    const deletedStoreName = targetStore?.name || 'Boutique supprimée';
+
+    // Remove store
+    const remainingStores = stores.filter((s) => s.id !== storeId);
+    localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(remainingStores));
+
+    // Remove associated seller user(s)
+    const users = this.getUsers();
+    const sellerUser = users.find(
+      (u) => u.role === 'seller' && (u.storeId === storeId || (targetStore && u.id === targetStore.sellerId))
+    );
+    const deletedSellerName = sellerUser?.name || 'Vendeur';
+    const remainingUsers = users.filter(
+      (u) => !(u.role === 'seller' && (u.storeId === storeId || (targetStore && u.id === targetStore.sellerId)))
+    );
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(remainingUsers));
+
+    // Remove all products belonging to this store
+    const allProducts = this.getProducts();
+    const remainingProducts = allProducts.filter((p) => p.storeId !== storeId);
+    const deletedProductsCount = allProducts.length - remainingProducts.length;
+    this.cachedProducts = remainingProducts;
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(remainingProducts));
+
+    // Clean up reviews, cart items, and abandoned carts for this store
+    const remainingReviews = this.getReviews().filter((r) => r.storeId !== storeId);
+    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(remainingReviews));
+
+    const remainingCart = this.getCart().filter((c) => c.storeId !== storeId);
+    localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(remainingCart));
+
+    try {
+      const abRaw = localStorage.getItem(STORAGE_KEYS.ABANDONED_CARTS);
+      if (abRaw) {
+        const abList: AbandonedCart[] = JSON.parse(abRaw);
+        localStorage.setItem(
+          STORAGE_KEYS.ABANDONED_CARTS,
+          JSON.stringify(abList.filter((a) => a.storeId !== storeId))
+        );
+      }
+    } catch {
+      // ignore
+    }
+
+    // Sign out if current user was the deleted seller
+    const current = this.getCurrentUser();
+    if (
+      current?.role === 'seller' &&
+      (current.storeId === storeId || (targetStore && current.id === targetStore.sellerId))
+    ) {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    }
+
+    this.notify();
+    return { deletedStoreName, deletedSellerName, deletedProductsCount };
   }
 
   public recordProductView(productId: string): void {
@@ -1100,6 +1264,12 @@ class StorageService {
     this.notify();
   }
 
+  public deleteReview(reviewId: string): void {
+    const reviews = this.getReviews().filter((r) => r.id !== reviewId);
+    localStorage.setItem(STORAGE_KEYS.REVIEWS, JSON.stringify(reviews));
+    this.notify();
+  }
+
   // --- SETTINGS ---
   public getSettings(): PlatformSettings {
     const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
@@ -1123,7 +1293,7 @@ class StorageService {
       version: '1.0',
       platform: 'BéninMarket',
       exportedAt: new Date().toISOString(),
-      superAdmin: 'pasteurkazotti@gmail.com',
+      superAdmin: 'kazottimahutondj@gmail.com',
       totalRecords: {
         stores: this.getStores().length,
         products: this.getProducts().length,

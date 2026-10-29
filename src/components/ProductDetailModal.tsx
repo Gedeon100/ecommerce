@@ -1,26 +1,27 @@
-import React, { useState } from 'react';
-import { Product, Store, ProductReview } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Product, Store } from '../types';
 import { formatFCFA, calculateDiscountPercent } from '../utils/formatters';
 import {
   X,
   Star,
   ShieldCheck,
   Truck,
-  RotateCcw,
   CheckCircle2,
-  Video,
   Play,
-  Share2,
   Store as StoreIcon,
   MessageCircle,
-  Clock,
   MapPin,
   ChevronRight,
   FileText,
   Quote,
+  Zap,
+  Sparkles,
+  Loader2,
+  Globe,
 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { mediaStorage } from '../services/mediaStorage';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -41,22 +42,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onDirectOrder,
   onOpenStore,
 }) => {
-  if (!product) return null;
-
+  const { language, currentLanguageOption, t, translateCategory } = useLanguage();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>(() => {
-    const initial: Record<string, string> = {};
-    if (product.variants) {
-      product.variants.forEach((v) => {
-        if (v.options.length > 0) {
-          initial[v.name] = v.options[0];
-        }
-      });
-    }
-    return initial;
-  });
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+
+  // Fast AI Sales Pitch & Live Translation states
+  const [aiPitch, setAiPitch] = useState<{
+    headline: string;
+    reasons: string[];
+    reassurance: string;
+    verdict: string;
+  } | null>(null);
+  const [isLoadingPitch, setIsLoadingPitch] = useState(false);
+
+  const [translatedContent, setTranslatedContent] = useState<{
+    title: string;
+    description: string;
+  } | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   const [reviewTab, setReviewTab] = useState<'details' | 'reviews'>('details');
   const [newReviewAuthor, setNewReviewAuthor] = useState('');
@@ -64,8 +69,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [newReviewText, setNewReviewText] = useState('');
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
+  useEffect(() => {
+    if (product) {
+      setActiveImageIndex(0);
+      setShowVideo(false);
+      setQuantity(1);
+      setAiPitch(null);
+      setTranslatedContent(null);
+      const initial: Record<string, string> = {};
+      if (product.variants) {
+        product.variants.forEach((v) => {
+          if (v.options.length > 0) initial[v.name] = v.options[0];
+        });
+      }
+      setSelectedVariants(initial);
+    }
+  }, [product?.id]);
+
+  if (!product) return null;
+
   const discountPercent = calculateDiscountPercent(product.price, product.promoPrice);
   const activePrice = product.isPromoActive && product.promoPrice ? product.promoPrice : product.price;
+  const reviews = storageService.getReviewsByProduct(product.id);
 
   const handleVariantSelect = (variantName: string, optionValue: string) => {
     setSelectedVariants((prev) => ({
@@ -74,7 +99,69 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }));
   };
 
-  const reviews = storageService.getReviewsByProduct(product.id);
+  const handleLoadFastAIPitch = async () => {
+    if (aiPitch || isLoadingPitch) return;
+    setIsLoadingPitch(true);
+    try {
+      const resp = await fetch('/api/ai/product-pitch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName: product.name,
+          category: product.category,
+          price: activePrice,
+          shortDescription: product.shortDescription || product.description.slice(0, 160),
+          storeName: store?.name,
+          language,
+        }),
+      });
+      const json = await resp.json();
+      if (json?.success && json.data) {
+        setAiPitch(json.data);
+      }
+    } catch {
+      setAiPitch({
+        headline: `🔥 Pourquoi « ${product.name} » est fortement recommandé`,
+        reasons: [
+          `Qualité contrôlée avant expédition par ${store?.name || 'notre vendeur vérifié'}`,
+          `Excellent rapport qualité-prix (${formatFCFA(activePrice)})`,
+          `Zéro avance : vous inspectez le colis chez vous avant de régler`,
+        ],
+        reassurance: `🛡️ Paiement 100% à la livraison garanti partout au Bénin.`,
+        verdict: `Commandez maintenant pendant qu'il reste ${product.stock} unité(s) en stock !`,
+      });
+    } finally {
+      setIsLoadingPitch(false);
+    }
+  };
+
+  const handleTranslateProductSheet = async () => {
+    if (language === 'fr' || isTranslating) return;
+    setIsTranslating(true);
+    try {
+      const resp = await fetch('/api/ai/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: product.name,
+          description: product.detailedDescription || product.description,
+          targetLanguage: language,
+          targetLanguageName: currentLanguageOption.name,
+        }),
+      });
+      const json = await resp.json();
+      if (json?.success && json.data) {
+        setTranslatedContent({
+          title: json.data.translatedTitle || product.name,
+          description: json.data.translatedDescription || product.description,
+        });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   const handleAddReview = (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,13 +182,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     setTimeout(() => setReviewSubmitted(false), 4000);
   };
 
+  const displayedTitle = translatedContent?.title || product.name;
+  const displayedDescription = translatedContent?.description || product.description;
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
-        {/* Header with Close */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50/50">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>{product.category}</span>
+        {/* Header with Category, Store & Translation */}
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3 border-b border-slate-200 bg-slate-50/70 gap-2">
+          <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0">
+            <span className="truncate font-semibold text-amber-800">
+              {translateCategory(product.category)}
+            </span>
             <span aria-hidden="true">·</span>
             {store && (
               <button
@@ -109,25 +201,43 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   onClose();
                   onOpenStore(store.slug);
                 }}
-                className="font-medium text-amber-700 hover:underline flex items-center gap-1 cursor-pointer"
+                className="font-medium text-slate-700 hover:text-amber-700 hover:underline flex items-center gap-1 cursor-pointer truncate"
               >
-                <StoreIcon className="w-3.5 h-3.5" />
-                <span>{store.name}</span>
+                <StoreIcon className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                <span className="truncate">{store.name}</span>
               </button>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-            aria-label="Fermer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {language !== 'fr' && (
+              <button
+                type="button"
+                onClick={handleTranslateProductSheet}
+                disabled={isTranslating}
+                className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                {isTranslating ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Globe className="w-3 h-3" />
+                )}
+                <span>{t('product.translateBtn')}</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Fermer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
         <div className="overflow-y-auto p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left Column: Media Gallery */}
+          {/* Left Column: Media Gallery + Fast Persuasive AI Advisor */}
           <div className="space-y-4">
             <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
               {showVideo && product.videoUrl ? (
@@ -140,22 +250,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   />
                   <button
                     onClick={() => setShowVideo(false)}
-                    className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded"
+                    className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded cursor-pointer"
                   >
-                    Retour aux photos
+                    Photos
                   </button>
                 </div>
               ) : (
                 <img
                   src={mediaStorage.resolveUrl(product.images[activeImageIndex] || product.images[0])}
-                  alt={product.name}
+                  alt={displayedTitle}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"
                 />
               )}
 
               {discountPercent > 0 && !showVideo && (
                 <div className="absolute top-3 left-3 bg-rose-600 text-white text-xs font-bold px-2.5 py-1 rounded shadow-sm">
-                  Économisez {discountPercent}%
+                  -{discountPercent}%
                 </div>
               )}
             </div>
@@ -175,11 +286,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       : 'border-slate-200 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={mediaStorage.resolveUrl(img)} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={mediaStorage.resolveUrl(img)}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
 
-              {/* Video button if product has demo video */}
               {product.videoUrl && (
                 <button
                   onClick={() => setShowVideo(true)}
@@ -195,45 +310,83 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               )}
             </div>
 
+            {/* Fast & Optimized Sales Page AI Advisor */}
+            <div className="rounded-xl border border-amber-300 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white p-3.5 space-y-2.5 shadow-md">
+              {!aiPitch ? (
+                <button
+                  type="button"
+                  onClick={handleLoadFastAIPitch}
+                  disabled={isLoadingPitch}
+                  className="w-full flex items-center justify-between gap-2 text-left text-xs font-bold text-amber-300 hover:text-amber-200 cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    {isLoadingPitch ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-amber-400 shrink-0" />
+                    ) : (
+                      <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                    )}
+                    <span>
+                      {isLoadingPitch ? 'Analyse express en cours...' : t('product.aiConvinceBtn')}
+                    </span>
+                  </span>
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                </button>
+              ) : (
+                <div className="space-y-2 text-xs animate-in fade-in duration-200">
+                  <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                    <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>{aiPitch.headline}</span>
+                  </div>
+                  <ul className="space-y-1 text-slate-200 text-[11px]">
+                    {aiPitch.reasons.map((r, idx) => (
+                      <li key={idx} className="leading-snug">
+                        {r}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="p-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-[11px] font-semibold">
+                    {aiPitch.reassurance}
+                  </div>
+                  <div className="text-[11px] text-amber-300 font-bold">{aiPitch.verdict}</div>
+                </div>
+              )}
+            </div>
+
             {/* Cash on Delivery Trust Box */}
-            <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-2">
+            <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl text-xs space-y-1.5">
               <div className="flex items-center gap-2 font-semibold text-amber-900">
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Paiement à la livraison garanti (COD)</span>
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{t('product.codTitle')}</span>
               </div>
-              <p className="text-amber-800 leading-relaxed">
-                Vous ne payez rien maintenant. Le livreur vous apporte le produit à domicile, vous inspectez le colis puis vous réglez en espèces.
-              </p>
+              <p className="text-amber-800 leading-relaxed">{t('product.codDesc')}</p>
             </div>
           </div>
 
-          {/* Right Column: Contiguous Purchase Module */}
-          <div className="flex flex-col justify-between space-y-6">
+          {/* Right Column: Purchase Module */}
+          <div className="flex flex-col justify-between space-y-5">
             <div>
-              {/* Product Title */}
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight mb-2">
-                {product.name}
+                {displayedTitle}
               </h1>
 
-              {/* Rating and store details */}
-              <div className="flex items-center gap-3 text-xs text-slate-600 mb-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3 text-xs text-slate-600 mb-4 pb-3 border-b border-slate-100">
                 <div className="flex items-center text-amber-500 font-bold">
                   <Star className="w-4 h-4 fill-current mr-1" />
                   <span>{product.rating}</span>
                 </div>
                 <span aria-hidden="true" className="text-slate-300">·</span>
                 <span className="tabular-nums font-medium text-slate-700">
-                  {product.salesCount} vendus
+                  {product.salesCount} {t('card.sales')}
                 </span>
                 <span aria-hidden="true" className="text-slate-300">·</span>
                 <span className={product.stock > 0 ? 'text-emerald-700 font-semibold' : 'text-rose-600 font-semibold'}>
-                  {product.stock > 0 ? `${product.stock} en stock` : 'Rupture de stock'}
+                  {product.stock > 0 ? `${product.stock} ${t('card.inStock')}` : t('card.outOfStock')}
                 </span>
               </div>
 
               {/* Price display */}
-              <div className="mb-5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                <div className="flex items-baseline gap-3">
+              <div className="mb-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div className="flex items-baseline gap-3 flex-wrap">
                   <span className="text-2xl font-extrabold text-slate-900 tabular-nums">
                     {formatFCFA(activePrice)}
                   </span>
@@ -244,19 +397,31 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   )}
                   {discountPercent > 0 && (
                     <span className="text-xs font-semibold text-rose-700 bg-rose-100 px-2 py-0.5 rounded">
-                      Remise de {formatFCFA(product.price - (product.promoPrice || 0))}
+                      -{formatFCFA(product.price - (product.promoPrice || 0))}
                     </span>
                   )}
                 </div>
                 <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
                   <Truck className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Livraison disponible partout au Bénin sous 24h à 48h</span>
+                  <span>Livraison rapide partout au Bénin (24h à 48h)</span>
                 </div>
               </div>
 
+              {/* Persuasive Bullet Points if present */}
+              {product.features && product.features.length > 0 && (
+                <div className="mb-4 space-y-1.5 bg-emerald-50/50 border border-emerald-200/70 p-3 rounded-xl text-xs">
+                  {product.features.slice(0, 4).map((feat, i) => (
+                    <div key={i} className="text-slate-800 font-medium flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Variants Selector */}
               {product.variants && product.variants.length > 0 && (
-                <div className="space-y-3 mb-5">
+                <div className="space-y-3 mb-4">
                   {product.variants.map((v) => (
                     <div key={v.id}>
                       <label className="block text-xs font-semibold text-slate-700 mb-1.5">
@@ -287,9 +452,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               )}
 
               {/* Quantity Selector */}
-              <div className="mb-6">
+              <div className="mb-5">
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Quantité à commander
+                  {t('product.quantity')}
                 </label>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center border border-slate-200 rounded-lg bg-white">
@@ -297,7 +462,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       type="button"
                       onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                       disabled={quantity <= 1}
-                      className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40 rounded-l-lg transition-colors"
+                      className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40 rounded-l-lg transition-colors cursor-pointer"
                     >
                       -
                     </button>
@@ -308,7 +473,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       type="button"
                       onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
                       disabled={quantity >= product.stock}
-                      className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40 rounded-r-lg transition-colors"
+                      className="px-3 py-1.5 text-slate-600 hover:bg-slate-100 disabled:opacity-40 rounded-r-lg transition-colors cursor-pointer"
                     >
                       +
                     </button>
@@ -322,7 +487,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Action Buttons: Direct COD Order + Add to Cart + WhatsApp inquiry */}
+              {/* Action Buttons */}
               <div className="space-y-2.5">
                 <button
                   type="button"
@@ -331,16 +496,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   className="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer text-sm"
                 >
                   <ShieldCheck className="w-5 h-5 text-amber-200" />
-                  <span>Commander maintenant (Payer à la livraison)</span>
+                  <span>{t('product.orderNow')}</span>
                 </button>
 
                 {!isLoggedIn ? (
                   <p className="text-[11px] text-center text-slate-500 bg-slate-50 py-1.5 px-2 rounded-lg border border-slate-100">
-                    <span className="font-semibold text-amber-700">Inscription acheteur requise :</span> vous créerez votre compte en 30 secondes pour commander sans carte bancaire.
+                    <span className="font-semibold text-amber-700">Commande rapide :</span> inscription acheteur en 30s sans carte bancaire.
                   </p>
                 ) : (
                   <p className="text-[11px] text-center text-emerald-700 font-medium">
-                    ✓ Compte acheteur actif — vos coordonnées seront pré-remplies.
+                    ✓ Compte acheteur actif — livraison à domicile avec paiement à réception.
                   </p>
                 )}
 
@@ -351,19 +516,20 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     disabled={product.stock <= 0}
                     className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer text-xs"
                   >
-                    <span>Ajouter au panier</span>
+                    <span>{t('product.addToCart')}</span>
                   </button>
 
                   {store && (
                     <a
-                      href={`https://wa.me/${store.whatsapp.replace(/[^\d+]/g, '').replace('+', '')}?text=${encodeURIComponent(`Bonjour ${store.name}, je suis intéressé par votre produit "${product.name}" sur BéninMarket (Prix: ${formatFCFA(activePrice)}). Pouvez-vous me donner plus de détails sur la livraison ?`)}`}
+                      href={`https://wa.me/${store.whatsapp.replace(/[^\d+]/g, '').replace('+', '')}?text=${encodeURIComponent(
+                        `Bonjour ${store.name}, je suis intéressé par votre produit "${product.name}" sur BéninMarket (${formatFCFA(activePrice)}).`
+                      )}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs shadow-xs"
-                      title="Contacter le vendeur directement sur WhatsApp"
                     >
                       <MessageCircle className="w-4 h-4" />
-                      <span>Écrire sur WhatsApp</span>
+                      <span>{t('product.whatsapp')}</span>
                     </a>
                   )}
                 </div>
@@ -382,9 +548,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <div>
                     <div className="text-xs font-semibold text-slate-900 flex items-center gap-1">
                       <span>{store.name}</span>
-                      {store.isVerified && (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-                      )}
+                      {store.isVerified && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />}
                     </div>
                     <div className="text-[11px] text-slate-500 flex items-center gap-1">
                       <MapPin className="w-3 h-3 text-slate-400" />
@@ -400,7 +564,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   }}
                   className="text-xs font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-0.5 cursor-pointer"
                 >
-                  <span>Visiter la boutique</span>
+                  <span>{t('product.visitStore')}</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -408,151 +572,106 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Tab section: Description vs Customer Reviews */}
-        {/* Tab section: Description vs Customer Reviews & Testimonials */}
+        {/* Bottom Tabs: Description vs Reviews */}
         <div className="border-t border-slate-200 px-6 py-4 bg-slate-50/50">
           <div className="flex items-center gap-4 border-b border-slate-200 pb-2 mb-4 text-xs font-semibold">
             <button
               onClick={() => setReviewTab('details')}
-              className={`pb-1 transition-colors flex items-center gap-1.5 ${
+              className={`pb-1 transition-colors flex items-center gap-1.5 cursor-pointer ${
                 reviewTab === 'details'
                   ? 'border-b-2 border-amber-600 text-amber-800'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Description & Fiche technique</span>
+              <span>Description & Page de Vente</span>
             </button>
             <button
               onClick={() => setReviewTab('reviews')}
-              className={`pb-1 transition-colors flex items-center gap-1.5 ${
+              className={`pb-1 transition-colors flex items-center gap-1.5 cursor-pointer ${
                 reviewTab === 'reviews'
                   ? 'border-b-2 border-amber-600 text-amber-800'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <Quote className="w-3.5 h-3.5" />
-              <span>
-                Témoignages & Avis ({((product.testimonials?.length || 0) + reviews.length)})
-              </span>
+              <span>Avis Clients ({(product.testimonials?.length || 0) + reviews.length})</span>
             </button>
           </div>
 
           {reviewTab === 'details' ? (
             <div className="space-y-3.5 text-xs text-slate-700 leading-relaxed max-h-56 overflow-y-auto pr-1">
-              {/* Detailed Description created by Seller */}
-              {product.detailedDescription && (
-                <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200/80">
-                  <div className="flex items-center gap-1.5 mb-2 text-amber-950 font-semibold">
-                    <FileText className="w-4 h-4 text-amber-700" />
-                    <span>Présentation détaillée par la boutique</span>
-                  </div>
-                  <div className="text-slate-700 whitespace-pre-line leading-relaxed">
-                    {product.detailedDescription}
-                  </div>
+              {product.detailedDescription && !translatedContent && (
+                <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200/80 whitespace-pre-line">
+                  {product.detailedDescription}
                 </div>
               )}
 
-              {/* Standard product description */}
-              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                <p>{product.description}</p>
+              <div className="p-3 bg-white rounded-lg border border-slate-200 whitespace-pre-line">
+                {displayedDescription}
               </div>
 
               {product.deliveryInfo && (
                 <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-start gap-2">
                   <Truck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-semibold text-slate-900">Conditionnement & Livraison : </span>
+                    <span className="font-semibold text-slate-900">Livraison : </span>
                     <span>{product.deliveryInfo}</span>
                   </div>
-                </div>
-              )}
-
-              {product.dimensions && (
-                <div className="p-2.5 bg-slate-100 rounded-lg text-slate-600 flex items-center justify-between">
-                  <span><strong>Dimensions du colis :</strong> {product.dimensions}</span>
-                  <span><strong>Poids :</strong> {product.weightKg ? `${product.weightKg} kg` : 'N/A'}</span>
                 </div>
               )}
             </div>
           ) : (
             <div className="space-y-4 max-h-60 overflow-y-auto text-xs pr-1">
-              {/* Seller Curated Testimonials */}
               {product.testimonials && product.testimonials.length > 0 && (
-                <div className="space-y-2 mb-3">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
-                    <Quote className="w-3.5 h-3.5" />
-                    <span>Témoignages clients authentifiés ({product.testimonials.length})</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {product.testimonials.map((t) => (
-                      <div
-                        key={t.id}
-                        className="p-3 bg-gradient-to-br from-amber-50/70 to-white rounded-lg border border-amber-200/80 text-xs shadow-2xs"
-                      >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="font-semibold text-slate-900 flex items-center gap-1">
-                            <span>{t.author}</span>
-                            {t.city && (
-                              <span className="text-[10px] text-slate-500 font-normal">
-                                · {t.city}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex text-amber-500">
-                            {Array.from({ length: t.rating }).map((_, i) => (
-                              <Star key={i} className="w-3 h-3 fill-current" />
-                            ))}
-                          </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {product.testimonials.map((tItem) => (
+                    <div
+                      key={tItem.id}
+                      className="p-3 bg-gradient-to-br from-amber-50/70 to-white rounded-lg border border-amber-200/80 text-xs shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="font-semibold text-slate-900">
+                          {tItem.author} {tItem.city ? `· ${tItem.city}` : ''}
                         </div>
-                        <p className="text-slate-700 italic">« {t.comment} »</p>
-                        <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
-                          <span className="text-emerald-700 font-medium flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> Achat vérifié
-                          </span>
-                          <span>{t.date}</span>
+                        <div className="flex text-amber-500">
+                          {Array.from({ length: tItem.rating }).map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-current" />
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-slate-700 italic">« {tItem.comment} »</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* Live Platform Customer Reviews */}
-              <div>
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1">
-                  <MessageCircle className="w-3.5 h-3.5" />
-                  <span>Avis des acheteurs de la plateforme ({reviews.length})</span>
-                </div>
-                {reviews.length === 0 ? (
-                  <p className="text-slate-500 italic p-3 bg-white rounded-lg border border-slate-200">
-                    Aucun avis supplémentaire pour l'instant. Soyez le premier client à partager votre expérience après livraison !
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {reviews.map((r) => (
-                      <div key={r.id} className="p-3 bg-white rounded-lg border border-slate-200">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-slate-800">{r.customerName}</span>
-                          <div className="flex text-amber-400">
-                            {Array.from({ length: r.rating }).map((_, i) => (
-                              <Star key={i} className="w-3 h-3 fill-current" />
-                            ))}
-                          </div>
+              {reviews.length > 0 && (
+                <div className="space-y-2">
+                  {reviews.map((r) => (
+                    <div key={r.id} className="p-3 bg-white rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-slate-800">{r.customerName}</span>
+                        <div className="flex text-amber-400">
+                          {Array.from({ length: r.rating }).map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-current" />
+                          ))}
                         </div>
-                        <p className="text-slate-600">{r.comment}</p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <p className="text-slate-600">{r.comment}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              {/* Add review form */}
-              <form onSubmit={handleAddReview} className="pt-3 border-t border-slate-200 space-y-2 bg-white p-3 rounded-lg border border-slate-100">
-                <span className="font-semibold text-slate-800 block">Laisser votre avis (Achat vérifié)</span>
+              <form
+                onSubmit={handleAddReview}
+                className="pt-3 border-t border-slate-200 space-y-2 bg-white p-3 rounded-lg border border-slate-100"
+              >
+                <span className="font-semibold text-slate-800 block">Publier votre avis client</span>
                 {reviewSubmitted && (
                   <div className="p-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded">
-                    Merci ! Votre avis a été enregistré avec succès.
+                    Merci ! Votre avis est maintenant visible sur le produit et dans l’administration.
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2">
@@ -561,7 +680,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     required
                     value={newReviewAuthor}
                     onChange={(e) => setNewReviewAuthor(e.target.value)}
-                    placeholder="Votre prénom et nom"
+                    placeholder="Votre nom"
                     className="p-2 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                   />
                   <select
@@ -569,11 +688,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     onChange={(e) => setNewReviewRating(Number(e.target.value))}
                     className="p-2 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                   >
-                    <option value={5}>⭐⭐⭐⭐⭐ 5 étoiles (Excellent)</option>
-                    <option value={4}>⭐⭐⭐⭐ 4 étoiles (Très bon)</option>
-                    <option value={3}>⭐⭐⭐ 3 étoiles (Correct)</option>
-                    <option value={2}>⭐⭐ 2 étoiles</option>
-                    <option value={1}>⭐ 1 étoile</option>
+                    <option value={5}>⭐⭐⭐⭐⭐ 5/5</option>
+                    <option value={4}>⭐⭐⭐⭐ 4/5</option>
+                    <option value={3}>⭐⭐⭐ 3/5</option>
+                    <option value={2}>⭐⭐ 2/5</option>
+                    <option value={1}>⭐ 1/5</option>
                   </select>
                 </div>
                 <textarea
@@ -581,14 +700,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   rows={2}
                   value={newReviewText}
                   onChange={(e) => setNewReviewText(e.target.value)}
-                  placeholder="Votre avis sur la qualité du produit, la finition et la livraison à domicile..."
+                  placeholder="Votre avis sur le produit et la livraison..."
                   className="w-full p-2 border border-slate-200 rounded text-xs bg-slate-50 focus:bg-white"
                 />
                 <button
                   type="submit"
                   className="px-3.5 py-1.5 bg-slate-900 text-white rounded text-xs font-semibold hover:bg-slate-800 cursor-pointer"
                 >
-                  Publier l'avis
+                  Envoyer mon avis
                 </button>
               </form>
             </div>

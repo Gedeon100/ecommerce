@@ -12,6 +12,7 @@ export interface User {
   role: UserRole;
   storeId?: string;
   avatar?: string;
+  isBlocked?: boolean;
   createdAt: string;
 }
 
@@ -64,6 +65,9 @@ export interface Store {
   deliveryInstructions?: string;
   lowStockThreshold?: number;
   codAccepted?: boolean;
+  isBlocked?: boolean;
+  blockReason?: string;
+  blockedAt?: string;
   createdAt: string;
 }
 
@@ -235,10 +239,29 @@ export interface AbandonedCart {
 export interface AISalesCopyResponse {
   salesTitle: string;
   hook: string;
+  urgencyBadge?: string;
   persuasiveDescription: string;
   bulletPoints: string[];
+  whyBuyReasons?: string[];
   codGuaranteeArgument: string;
+  callToAction?: string;
   faq: { question: string; answer: string }[];
+  suggestedTestimonials?: { author: string; city: string; rating: number; comment: string }[];
+}
+
+export interface AIProductImageItem {
+  id: string;
+  url: string;
+  title: string;
+  source: string;
+  style: 'web_photo' | 'studio_poster';
+}
+
+export interface AIProductImagesResponse {
+  images: AIProductImageItem[];
+  searchQueriesUsed: string[];
+  webSources: { title: string; uri: string }[];
+  visualSummary: string;
 }
 
 export interface AICartRecoveryResponse {

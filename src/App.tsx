@@ -31,6 +31,7 @@ import { storageService } from './services/storageService';
 import { Product, Store, Order, CartItem, User } from './types';
 import { CATEGORIES } from './data/initialData';
 import { formatFCFA, calculateDiscountPercent } from './utils/formatters';
+import { useLanguage } from './i18n/LanguageContext';
 
 import {
   ShieldCheck,
@@ -53,15 +54,21 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  const { t, translateCategory } = useLanguage();
   // Reactive state synced with storageService
   const [currentUser, setCurrentUser] = useState<User | null>(() => storageService.getCurrentUser());
   const [products, setProducts] = useState<Product[]>(() => storageService.getProducts());
   const [stores, setStores] = useState<Store[]>(() => storageService.getStores());
   const [cart, setCart] = useState<CartItem[]>(() => storageService.getCart());
 
-  // Views & Routing - If seller is logged in, default directly to their dedicated seller platform
+  // Views & Routing - Only owner admin defaults to admin
   const [currentView, setCurrentView] = useState<'home' | 'categories' | 'stores' | 'boutique' | 'seller' | 'admin' | 'customer'>(
-    () => (currentUser?.role === 'seller' ? 'seller' : currentUser?.role === 'admin' ? 'admin' : 'home')
+    () =>
+      currentUser?.role === 'seller'
+        ? 'seller'
+        : currentUser?.role === 'admin' && currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com'
+        ? 'admin'
+        : 'home'
   );
   const [sellerActiveTab, setSellerActiveTab] = useState<'overview' | 'products' | 'orders' | 'abandoned_carts' | 'promotions' | 'settings'>('overview');
   const [isSellerBoundaryModalOpen, setIsSellerBoundaryModalOpen] = useState(false);
@@ -130,10 +137,13 @@ export default function App() {
     };
   }, []);
 
-  // Filtered and sorted products for home/categories view
+    //Filtered and sorted products for home/categories view (exclude blocked stores)
+  const publicStores = stores.filter((s) => !s.isBlocked);
+
   const filteredProducts = products.filter((p) => {
     if (!p.isPublished) return false;
     const store = stores.find((s) => s.id === p.storeId);
+    if (store?.isBlocked) return false;
     const cleanQ = searchQuery.toLowerCase().trim();
 
     const matchesSearch =
@@ -164,10 +174,16 @@ export default function App() {
     return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
   });
 
-  // Promotional items
-  const promoProducts = products.filter((p) => p.isPublished && p.isPromoActive && p.promoPrice);
-  // Video items
-  const videoProducts = products.filter((p) => p.isPublished && p.videoUrl);
+  // Promotional items (exclude blocked stores)
+  const promoProducts = products.filter((p) => {
+    const st = stores.find((s) => s.id === p.storeId);
+    return p.isPublished && !st?.isBlocked && p.isPromoActive && p.promoPrice;
+  });
+  // Video items (exclude blocked stores)
+  const videoProducts = products.filter((p) => {
+    const st = stores.find((s) => s.id === p.storeId);
+    return p.isPublished && !st?.isBlocked && p.videoUrl;
+  });
 
   // Navigation Handler - Enforces strict boundary between seller platform and buyer space
   const handleNavigate = (view: 'home' | 'categories' | 'stores' | 'track' | 'seller' | 'admin' | 'customer', param?: string) => {
@@ -176,9 +192,23 @@ export default function App() {
       return;
     }
 
+    if (view === 'admin') {
+      const isOwner =
+        currentUser?.role === 'admin' &&
+        currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com';
+      if (!isOwner) {
+        setIsFounderModalOpen(true);
+        return;
+      }
+    }
+
     if (view === 'seller' && currentUser?.role !== 'seller') {
       const users = storageService.getUsers();
-      const seller = users.find((u) => u.role === 'seller');
+      const seller = users.find((u) => {
+        if (u.role !== 'seller' || u.isBlocked) return false;
+        const st = stores.find((s) => s.id === u.storeId || s.sellerId === u.id);
+        return !st?.isBlocked;
+      });
       if (seller) {
         storageService.setCurrentUser(seller);
       } else {
@@ -346,32 +376,32 @@ export default function App() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
                     </span>
-                    <span className="text-white">Plus de 20 000 utilisateurs</span>
+                    <span className="text-white">{t('hero.statsUsers')}</span>
                     <span className="text-amber-400 font-normal">·</span>
-                    <span className="text-amber-300">Plus de 12 000 commandes traitées en 2026</span>
+                    <span className="text-amber-300">{t('hero.statsOrders')}</span>
                   </div>
 
                   <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight text-white font-display">
-                    Achetez en toute confiance auprès des commerçants du Bénin.
+                    {t('hero.title')}
                   </h1>
 
                   <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
-                    Rejoignez plus de <strong>20 000 utilisateurs</strong> avec plus de <strong>12 000 commandes traitées en 2026</strong>. Commandez sans carte bancaire ni prépaiement : vos colis sont livrés chez vous à Cotonou, Calavi, Porto-Novo et partout au Bénin avec paiement 100% à la livraison.
+                    {t('hero.subtitle')}
                   </p>
 
                   {/* Reassurance Feature Highlights */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
                       <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>0 FCFA payé en ligne</span>
+                      <span>{t('hero.zeroFee')}</span>
                     </div>
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
                       <Truck className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Livraison à domicile</span>
+                      <span>{t('hero.homeDelivery')}</span>
                     </div>
                     <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
                       <StoreIcon className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Boutiques vérifiées</span>
+                      <span>{t('hero.verifiedStores')}</span>
                     </div>
                   </div>
 
@@ -381,7 +411,7 @@ export default function App() {
                       href="#catalogue"
                       className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg hover:shadow-xl inline-flex items-center gap-2 cursor-pointer"
                     >
-                      <span>Explorer les produits</span>
+                      <span>{t('hero.exploreBtn')}</span>
                       <ArrowRight className="w-4 h-4" />
                     </a>
                     <button
@@ -392,7 +422,7 @@ export default function App() {
                       className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-xs sm:text-sm border border-white/20 transition-colors inline-flex items-center gap-2 cursor-pointer"
                     >
                       <StoreIcon className="w-4 h-4 text-amber-400" />
-                      <span>Créer ma boutique (Devenir Vendeur)</span>
+                      <span>{t('hero.createStoreBtn')}</span>
                     </button>
                   </div>
                 </div>
@@ -401,8 +431,8 @@ export default function App() {
                 <div className="lg:col-span-5">
                   <div className="bg-white/10 backdrop-blur-md border border-white/15 p-5 rounded-2xl shadow-2xl space-y-4">
                     <div className="flex items-center justify-between text-xs text-slate-300 pb-3 border-b border-white/10">
-                      <span className="font-semibold text-amber-400">En vedette aujourd'hui</span>
-                      <span>Paiement à la réception</span>
+                      <span className="font-semibold text-amber-400">{t('hero.featuredToday')}</span>
+                      <span>{t('hero.payOnReceipt')}</span>
                     </div>
 
                     <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-800">
@@ -433,7 +463,7 @@ export default function App() {
                       }}
                       className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer text-center block"
                     >
-                      Commander en espèces à la livraison
+                      {t('hero.orderCodBtn')}
                     </button>
                   </div>
                 </div>
@@ -455,7 +485,7 @@ export default function App() {
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      {cat}
+                      {translateCategory(cat)}
                     </button>
                   ))}
                 </div>
@@ -464,7 +494,7 @@ export default function App() {
                 <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-slate-100 scrollbar-none">
                   <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1 shrink-0">
                     <MapPin className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Lieux au Bénin :</span>
+                    <span>{t('filter.locations')}</span>
                   </span>
                   {BENIN_CITIES.map((city) => {
                     const isSelected = selectedCity === city;
@@ -478,7 +508,7 @@ export default function App() {
                             : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
                         }`}
                       >
-                        {city}
+                        {city === 'Toutes les villes' ? t('filter.allCities') : city}
                       </button>
                     );
                   })}
@@ -487,7 +517,7 @@ export default function App() {
                       onClick={() => setSelectedCity('Toutes les villes')}
                       className="text-[10px] text-amber-700 hover:underline font-semibold ml-1 shrink-0 cursor-pointer"
                     >
-                      Réinitialiser la ville
+                      {t('filter.resetCity')}
                     </button>
                   )}
                 </div>
@@ -582,7 +612,7 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {stores.map((s) => (
+                  {publicStores.map((s) => (
                     <div
                       key={s.id}
                       onClick={() => handleOpenStore(s.slug)}
@@ -636,13 +666,13 @@ export default function App() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <span>Produits disponibles ({sortedProducts.length})</span>
+                    <span>{t('catalog.available')} ({sortedProducts.length})</span>
                     <span className="text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">
-                      ♾️ Catalogue Illimité
+                      ♾️ {t('catalog.unlimited')}
                     </span>
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Sélectionnez vos articles physiques et confirmez sans paiement en ligne
+                    {t('catalog.subtitle')}
                   </p>
                 </div>
 
@@ -656,16 +686,16 @@ export default function App() {
                     <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
                     <span>10 000+ En ligne (Fluide)</span>
                   </button>
-                  <span className="text-slate-500">Trier :</span>
+                  <span className="text-slate-500">{t('catalog.sortBy')}</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
                     className="p-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-semibold focus:outline-none cursor-pointer"
                   >
-                    <option value="featured">En vedette</option>
-                    <option value="price-asc">Prix croissant</option>
-                    <option value="price-desc">Prix décroissant</option>
-                    <option value="popular">Meilleures ventes</option>
+                    <option value="featured">{t('catalog.sortFeatured')}</option>
+                    <option value="price-asc">{t('catalog.sortPriceAsc')}</option>
+                    <option value="price-desc">{t('catalog.sortPriceDesc')}</option>
+                    <option value="popular">{t('catalog.sortPopular')}</option>
                   </select>
                 </div>
               </div>
@@ -673,7 +703,7 @@ export default function App() {
               {sortedProducts.length === 0 ? (
                 <div className="bg-white p-12 text-center rounded-2xl border border-slate-200">
                   <p className="text-slate-500 text-sm">
-                    Aucun produit ne correspond à vos critères pour le moment.
+                    {t('catalog.empty')}
                   </p>
                 </div>
               ) : (
@@ -805,7 +835,7 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {stores.map((s) => (
+              {publicStores.map((s) => (
                 <div
                   key={s.id}
                   className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
@@ -879,12 +909,14 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 6: ADMIN DASHBOARD */}
+        {/* VIEW 6: ADMIN DASHBOARD (OWNER ONLY) */}
         {currentView === 'admin' && (
           <AdminDashboard
-            currentUser={currentUser || storageService.getUsers()[0]}
+            currentUser={currentUser || ({} as User)}
             onPrintOrderReceipt={(order) => setConfirmedOrder(order)}
             onOpenStore={handleOpenStore}
+            onNavigateHome={() => setCurrentView('home')}
+            onOpenLogin={() => setIsFounderModalOpen(true)}
           />
         )}
 
@@ -905,13 +937,21 @@ export default function App() {
 
       {/* Footer */}
       <Footer
+        currentUser={currentUser}
         onOpenSellerModal={() => {
           setAuthModalMode('register_seller');
           setIsAuthModalOpen(true);
         }}
         onOpenTrack={() => setIsTrackingOpen(true)}
-        onNavigateHome={() => setCurrentView('home')}
+        onNavigateHome={() => {
+          setCurrentView('home');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
         onOpenFounderModal={() => setIsFounderModalOpen(true)}
+        onNavigateAdmin={() => {
+          setCurrentView('admin');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
         onOpenCustomerService={() => {
           setCustomerServiceOrderId('');
           setIsCustomerServiceOpen(true);
@@ -987,17 +1027,18 @@ export default function App() {
         }}
       />
 
-      {/* MODAL: Secret Founder Access for Pasteur Kazotti */}
+      {/* MODAL: Owner Administrator Access */}
       <FounderAccessModal
         isOpen={isFounderModalOpen}
         onClose={() => setIsFounderModalOpen(false)}
         onAccessGranted={(adminUser) => {
           setCurrentUser(adminUser);
           setCurrentView('admin');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
         }}
       />
 
-      {/* MODAL: Unified Alibaba-style Auth (Buyer & Seller) */}
+      {/* MODAL: Unified Alibaba-style Auth (Buyer, Seller & Owner Admin) */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => {
@@ -1010,6 +1051,14 @@ export default function App() {
         onAuthSuccess={(user) => {
           setCurrentUser(user);
           setIsAuthModalOpen(false);
+
+          if (user.role === 'admin') {
+            setPendingOrderAction(null);
+            setAuthPromptReason('');
+            setCurrentView('admin');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+          }
 
           // If the user was trying to place an order, automatically resume the checkout!
           if (pendingOrderAction) {
@@ -1045,8 +1094,6 @@ export default function App() {
 
           if (user.role === 'seller') {
             setCurrentView('seller');
-          } else if (user.role === 'admin') {
-            setCurrentView('admin');
           } else {
             setCurrentView('customer');
           }

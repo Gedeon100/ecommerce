@@ -16,8 +16,6 @@ export const CustomerServiceModal: React.FC<CustomerServiceModalProps> = ({
   currentUser,
   initialOrderId = '',
 }) => {
-  if (!isOpen) return null;
-
   const [lastName, setLastName] = useState(currentUser?.lastName || (currentUser?.name ? currentUser.name.split(' ').slice(1).join(' ') : ''));
   const [firstName, setFirstName] = useState(currentUser?.firstName || (currentUser?.name ? currentUser.name.split(' ')[0] : ''));
   const [whatsapp, setWhatsapp] = useState(currentUser?.whatsapp || currentUser?.phone || '+229 ');
@@ -30,6 +28,8 @@ export const CustomerServiceModal: React.FC<CustomerServiceModalProps> = ({
   const [message, setMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [ticketId, setTicketId] = useState('');
+
+  if (!isOpen) return null;
 
   const targetEmail = 'kgmservices229@gmail.com';
 

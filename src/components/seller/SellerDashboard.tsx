@@ -2689,14 +2689,32 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
                   {/* Photo & Video Direct Upload from Device (No Size Limits) */}
                   <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                         <ImageIcon className="w-4 h-4 text-amber-600" />
-                        <span>Photos du produit (Téléchargement direct sans limite de taille)</span>
+                        <span>Photos du produit (Appareil ou Génération IA Web)</span>
                       </span>
-                      <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">
-                        {prodImages.filter((u) => u.trim().length > 0).length} photo(s)
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSalesCopyTargetProduct({
+                              name: prodName || 'Nouveau Produit',
+                              category: prodCategory,
+                              price: prodPrice,
+                              benefits: prodFeatures.join(', '),
+                            });
+                            setIsSalesCopyModalOpen(true);
+                          }}
+                          className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-300 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer shadow-2xs transition-colors"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>Générer Images IA (Recherche Web)</span>
+                        </button>
+                        <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">
+                          {prodImages.filter((u) => u.trim().length > 0).length} photo(s)
+                        </span>
+                      </div>
                     </div>
 
                     {/* Photo Upload Zone */}
@@ -3140,7 +3158,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         initialBenefits={salesCopyTargetProduct?.benefits || ''}
         storeName={sellerStore.name}
         onApplyCopy={(copy) => {
-          if (copy.title) setProdName(copy.title);
+          if (copy.title) {
+            setProdName(copy.title);
+            setProdShortDesc(copy.title.slice(0, 90));
+          }
           if (copy.description) {
             setProdDesc(copy.description);
             setProdDetailedDesc(copy.description);
@@ -3148,9 +3169,17 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           if (copy.features && copy.features.length > 0) {
             setProdFeatures(copy.features);
           }
-          setProdShortDesc(copy.title.slice(0, 90));
+          if (copy.images && copy.images.length > 0) {
+            setProdImages((prev) => {
+              const merged = [...copy.images!, ...prev.filter((u) => u.trim().length > 0)];
+              return Array.from(new Set(merged));
+            });
+          }
+          if (copy.testimonials && copy.testimonials.length > 0) {
+            setProdTestimonials((prev) => [...copy.testimonials!, ...prev]);
+          }
           setProductModalOpen(true);
-          setProductModalTab('description');
+          setProductModalTab(copy.description ? 'description' : 'general');
         }}
       />
 

@@ -1,4 +1,4 @@
-import { User, Store, Product, Order, PlatformSettings, DeliveryZone } from '../types';
+import { User, Store, Product, Order, PlatformSettings, DeliveryZone, ProductReview } from '../types';
 
 export const DEFAULT_DELIVERY_ZONES: DeliveryZone[] = [
   { id: 'zone-cotonou', city: 'Cotonou', neighborhoods: ['Haie Vive', 'Cadjehoun', 'Akpakpa', 'Agla', 'Fidjrossè', 'Gbégamey', 'Menontin'], fee: 1000, estimatedHours: '24h', freeAbove: 30000 },
@@ -12,13 +12,13 @@ export const DEFAULT_DELIVERY_ZONES: DeliveryZone[] = [
 export const INITIAL_USERS: User[] = [
   {
     id: 'user-admin',
-    name: 'Pasteur Kazotti (Fondateur & Super Admin)',
-    firstName: 'Pasteur',
-    lastName: 'KAZOTTI',
-    email: 'pasteurkazotti@gmail.com',
+    name: 'Propriétaire & Administrateur BéninMarket',
+    firstName: 'Administrateur',
+    lastName: 'PROPRIÉTAIRE',
+    email: 'kazottimahutondj@gmail.com',
     phone: '+229 97 00 11 22',
     whatsapp: '+229 97 00 11 22',
-    password: '2026',
+    password: 'Samuell@8',
     role: 'admin',
     createdAt: '2026-01-10T08:00:00Z',
   },
@@ -533,6 +533,52 @@ export const INITIAL_SETTINGS: PlatformSettings = {
   requireStoreVerification: true,
   primaryCountry: 'Bénin',
 };
+
+export const INITIAL_REVIEWS: ProductReview[] = [
+  {
+    id: 'rev-init-1',
+    productId: 'prod-wax-blazer',
+    storeId: 'store-danxome',
+    customerName: 'Brice Mensah',
+    rating: 5,
+    comment: 'Excellent blazer en Wax ! Tissu épais, coutures soignées et livraison rapide à Cotonou Haie Vive. J’ai payé en espèces après essayage.',
+    isVerifiedPurchase: true,
+    orderId: 'BM-2026-1042',
+    createdAt: '2026-03-03T09:30:00Z',
+  },
+  {
+    id: 'rev-init-2',
+    productId: 'prod-earbuds-anc',
+    storeId: 'store-agoua',
+    customerName: 'Clarisse Hounkpatin',
+    rating: 5,
+    comment: 'La réduction de bruit fonctionne super bien même en circulation à Cotonou. Très bonne autonomie, vendeur sérieux.',
+    isVerifiedPurchase: true,
+    orderId: 'BM-2026-1042',
+    createdAt: '2026-03-04T14:15:00Z',
+  },
+  {
+    id: 'rev-init-3',
+    productId: 'prod-karite-fouette-pot',
+    storeId: 'store-kbio',
+    customerName: 'Fatoumata Bamba',
+    rating: 5,
+    comment: 'La chantilly de karité sent divinement bon et hydrate toute la journée sans effet gras. Je recommande à 100% !',
+    isVerifiedPurchase: true,
+    orderId: 'BM-2026-1043',
+    createdAt: '2026-03-05T11:20:00Z',
+  },
+  {
+    id: 'rev-init-4',
+    productId: 'prod-sac-cuir-artisan',
+    storeId: 'store-danxome',
+    customerName: 'Romaric Soglo',
+    rating: 4,
+    comment: 'Cuir véritable très solide pour transporter mon PC portable 14 pouces. Livré en moins de 24h.',
+    isVerifiedPurchase: true,
+    createdAt: '2026-03-06T16:45:00Z',
+  },
+];
 
 export const CATEGORIES = [
   'Toutes les catégories',

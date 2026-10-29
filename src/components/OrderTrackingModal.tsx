@@ -34,8 +34,6 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   initialTrackingCode = '',
   onOpenCustomerService,
 }) => {
-  if (!isOpen) return null;
-
   const [trackingInput, setTrackingInput] = useState(initialTrackingCode);
   const [phoneInput, setPhoneInput] = useState('');
   const [searchedOrder, setSearchedOrder] = useState<Order | null>(() => {
@@ -51,6 +49,8 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   const [cancelError, setCancelError] = useState('');
   const [showBonModal, setShowBonModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+  if (!isOpen) return null;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

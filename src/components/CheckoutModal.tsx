@@ -36,8 +36,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderSuccess,
   onRequireAuth,
 }) => {
-  if (!isOpen || items.length === 0) return null;
-
   const [customerLastName, setCustomerLastName] = useState('');
   const [customerFirstName, setCustomerFirstName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('+229 ');
@@ -72,6 +70,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
     }
   }, [currentUser, isOpen]);
+
+  if (!isOpen || items.length === 0) return null;
 
   // Group items by store to compute exact delivery fees per vendor
   const itemsByStore: Record<string, CartItem[]> = {};

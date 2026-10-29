@@ -1,26 +1,51 @@
 import React from 'react';
-import { ShieldCheck, Truck, Phone, Mail, MapPin, Store as StoreIcon, Heart, Lock } from 'lucide-react';
+import {
+  ShieldCheck,
+  Truck,
+  Phone,
+  Mail,
+  MapPin,
+  Store as StoreIcon,
+  Lock,
+  Globe,
+  Download,
+  Home,
+  CheckCircle2,
+  Star,
+  Users,
+} from 'lucide-react';
+import { useLanguage, SUPPORTED_LANGUAGES, LanguageCode } from '../i18n/LanguageContext';
+import { User } from '../types';
 
 interface FooterProps {
+  currentUser?: User | null;
   onOpenSellerModal: () => void;
   onOpenTrack: () => void;
   onNavigateHome: () => void;
   onOpenFounderModal?: () => void;
+  onNavigateAdmin?: () => void;
   onOpenCustomerService?: () => void;
   onOpenPWAInstall?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
+  currentUser,
   onOpenSellerModal,
   onOpenTrack,
   onNavigateHome,
   onOpenFounderModal,
+  onNavigateAdmin,
   onOpenCustomerService,
   onOpenPWAInstall,
 }) => {
+  const { language, setLanguage, t } = useLanguage();
+  const isOwnerConnected =
+    currentUser?.role === 'admin' &&
+    currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com';
+
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 text-xs">
-      {/* 3 Pillars of Confidence (COD African market focus) */}
+      {/* 3 Pillars of Confidence */}
       <div className="border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex items-start gap-3">
@@ -28,12 +53,8 @@ export const Footer: React.FC<FooterProps> = ({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm mb-1">
-                Paiement 100% à la Livraison (COD)
-              </h4>
-              <p className="text-slate-400 leading-relaxed">
-                Aucun paiement préalable par carte bancaire. Vous inspectez votre colis et réglez le coursier en espèces chez vous.
-              </p>
+              <h4 className="font-bold text-white text-sm mb-1">{t('footer.codTitle')}</h4>
+              <p className="text-slate-400 leading-relaxed">{t('footer.codDesc')}</p>
             </div>
           </div>
 
@@ -42,12 +63,8 @@ export const Footer: React.FC<FooterProps> = ({
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm mb-1">
-                Livraison à Domicile au Bénin
-              </h4>
-              <p className="text-slate-400 leading-relaxed">
-                Cotonou, Calavi, Porto-Novo, Parakou, Ouidah, Bohicon... Nos livreurs partenaires acheminent vos colis sous 24h à 72h.
-              </p>
+              <h4 className="font-bold text-white text-sm mb-1">{t('footer.deliveryTitle')}</h4>
+              <p className="text-slate-400 leading-relaxed">{t('footer.deliveryDesc')}</p>
             </div>
           </div>
 
@@ -56,34 +73,33 @@ export const Footer: React.FC<FooterProps> = ({
               <StoreIcon className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm mb-1">
-                Créateurs & Commerçants Locaux
-              </h4>
-              <p className="text-slate-400 leading-relaxed">
-                Des entrepreneurs vérifiés proposant des produits physiques authentiques : mode africaine, artisanat, cosmétiques et électronique.
-              </p>
+              <h4 className="font-bold text-white text-sm mb-1">{t('footer.localTitle')}</h4>
+              <p className="text-slate-400 leading-relaxed">{t('footer.localDesc')}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Footer Links */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div>
           <button
             onClick={onNavigateHome}
-            className="text-lg font-bold tracking-tight text-white mb-3 inline-block cursor-pointer"
+            className="text-lg font-bold tracking-tight text-white mb-3 inline-flex items-center gap-1.5 cursor-pointer"
           >
-            <span className="text-amber-500">Bénin</span>
-            <span>Market</span>
+            <Home className="w-4 h-4 text-amber-500" />
+            <div>
+              <span className="text-amber-500">Bénin</span>
+              <span>Market</span>
+            </div>
           </button>
           <p className="text-slate-400 text-xs leading-relaxed mb-4">
-            La marketplace e-commerce moderne conçue pour les entrepreneurs et acheteurs au Bénin.
+            La marketplace e-commerce multivendeurs nouvelle génération avec paiement 100% à la livraison.
           </p>
-          <div className="space-y-1 text-slate-400 text-[11px]">
+          <div className="space-y-1.5 text-slate-400 text-[11px]">
             <div className="flex items-center gap-1.5">
               <Phone className="w-3.5 h-3.5 text-amber-500" />
-              <span>Assistance client : +229 97 00 11 22</span>
+              <span>Assistance : +229 97 00 11 22</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Mail className="w-3.5 h-3.5 text-amber-500" />
@@ -100,109 +116,174 @@ export const Footer: React.FC<FooterProps> = ({
               className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-[11px] font-medium transition cursor-pointer"
             >
               <Mail className="w-3.5 h-3.5" />
-              <span>Écrire au responsable du site</span>
+              <span>Écrire au service client</span>
             </button>
           )}
         </div>
 
         <div>
           <h5 className="font-bold text-white mb-3 text-xs uppercase tracking-wider">
-            Acheter en confiance
+            Navigation & Application
           </h5>
           <ul className="space-y-2 text-slate-400">
+            <li>
+              <button
+                onClick={onNavigateHome}
+                className="text-white hover:text-amber-400 font-semibold flex items-center gap-1.5 cursor-pointer"
+              >
+                <Home className="w-3.5 h-3.5 text-amber-500" />
+                <span>{t('nav.home')}</span>
+              </button>
+            </li>
             {onOpenPWAInstall && (
               <li>
                 <button
                   onClick={onOpenPWAInstall}
-                  className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 cursor-pointer"
+                  className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 cursor-pointer text-left"
                 >
-                  <span>📲 Installer l'App Mobile (Android & iPhone)</span>
+                  <Download className="w-3.5 h-3.5 shrink-0" />
+                  <span>Installer l’App (Téléphone & Ordinateur)</span>
                 </button>
               </li>
             )}
             <li>
               <button onClick={onOpenTrack} className="hover:text-amber-400 transition-colors cursor-pointer">
-                Suivre ou annuler ma commande
+                {t('nav.track')}
               </button>
             </li>
             {onOpenCustomerService && (
               <li>
-                <button onClick={onOpenCustomerService} className="hover:text-amber-400 transition-colors cursor-pointer text-amber-400">
-                  Service Clientèle (kgmservices229@gmail.com)
+                <button
+                  onClick={onOpenCustomerService}
+                  className="hover:text-amber-400 transition-colors cursor-pointer text-amber-400"
+                >
+                  Service Clientèle
                 </button>
               </li>
             )}
-            <li>
-              <button onClick={onNavigateHome} className="hover:text-amber-400 transition-colors cursor-pointer">
-                Catalogue complet & Promotions
-              </button>
-            </li>
-            <li>
-              <span className="text-slate-500">Conditions de paiement à la livraison</span>
-            </li>
-            <li>
-              <span className="text-slate-500">Politique de retour et réclamations</span>
-            </li>
           </ul>
         </div>
 
         <div>
           <h5 className="font-bold text-white mb-3 text-xs uppercase tracking-wider">
-            Espace Vendeurs
+            {t('nav.sellerSpace')}
           </h5>
           <ul className="space-y-2 text-slate-400">
             <li>
               <button
                 onClick={onOpenSellerModal}
-                className="text-amber-400 hover:text-amber-300 font-semibold"
+                className="text-amber-400 hover:text-amber-300 font-semibold cursor-pointer"
               >
                 Ouvrir ma boutique gratuite
               </button>
             </li>
             <li>
-              <span className="text-slate-500">Guide de gestion du stock</span>
+              <span className="text-slate-500">IA Rédaction & Images Page de Vente</span>
             </li>
             <li>
-              <span className="text-slate-500">Règlement des encaissements COD</span>
+              <span className="text-slate-500">Gestion des commandes Cash on Delivery</span>
             </li>
             <li>
-              <span className="text-slate-500">Chartes des produits autorisés</span>
+              <span className="text-slate-500">Relance IA des paniers abandonnés</span>
             </li>
           </ul>
         </div>
 
+        {/* 10 Languages Quick Switcher in Footer */}
         <div>
-          <h5 className="font-bold text-white mb-3 text-xs uppercase tracking-wider">
-            Rejoignez la Marketplace
+          <h5 className="font-bold text-white mb-3 text-xs uppercase tracking-wider flex items-center gap-1.5">
+            <Globe className="w-3.5 h-3.5 text-amber-400" />
+            <span>10 Langues Disponibles</span>
           </h5>
-          <p className="text-slate-400 text-xs mb-3">
-            Vous vendez des produits physiques au Bénin ? Multipliez vos commandes sans frais d'installation.
-          </p>
-          <button
-            onClick={onOpenSellerModal}
-            className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer shadow-sm text-center"
-          >
-            Créer un compte vendeur
-          </button>
+          <div className="grid grid-cols-2 gap-1.5">
+            {SUPPORTED_LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => setLanguage(lang.code as LanguageCode)}
+                className={`px-2 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-colors cursor-pointer border text-left ${
+                  language === lang.code
+                    ? 'bg-amber-600 border-amber-500 text-white font-bold'
+                    : 'bg-slate-800/70 border-slate-700/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <span>{lang.flag}</span>
+                <span className="truncate">{lang.nativeName}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Copyright with Discreet Founder Lock */}
-      <div className="border-t border-slate-800 py-4 px-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 text-[11px] text-center sm:text-left overflow-hidden">
-        <p className="break-words max-w-full">
-          © 2026 BéninMarket. Plateforme e-commerce multivendeurs dédiée au marché béninois et ouest-africain. Paiement à la livraison exclusif.
+      {/* DEDICATED OWNER ADMINISTRATOR RUBRIC IN FOOTER */}
+      <div className="border-t border-slate-800 bg-slate-950/70">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h5 className="font-bold text-white text-xs sm:text-sm">
+                  {t('footer.ownerSectionTitle')}
+                </h5>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-800 text-amber-400 border border-slate-700">
+                  Accès par connexion uniquement
+                </span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed max-w-2xl">
+                {t('footer.ownerSectionDesc')}
+              </p>
+              <div className="flex flex-wrap items-center gap-3 pt-0.5 text-[10px] text-slate-400">
+                <span className="inline-flex items-center gap-1">
+                  <Users className="w-3 h-3 text-amber-400" /> Tous les vendeurs
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Commandes validées
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Star className="w-3 h-3 text-amber-400" /> Avis de tous les clients
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            {isOwnerConnected ? (
+              <button
+                type="button"
+                onClick={() => (onNavigateAdmin ? onNavigateAdmin() : onOpenFounderModal?.())}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md transition-colors cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>{t('footer.ownerDashboardBtn')}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onOpenFounderModal}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-amber-600 text-white border border-slate-700 hover:border-amber-500 font-bold rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span>{t('footer.ownerLoginBtn')}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Copyright */}
+      <div className="border-t border-slate-800/80 py-4 px-4 sm:px-6 text-center sm:text-left text-slate-500 text-[11px] max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+        <p>
+          © 2026 BéninMarket — Marketplace Multivendeurs COD. Paiement 100% à la livraison.
         </p>
-        {onOpenFounderModal && (
-          <button
-            onClick={onOpenFounderModal}
-            className="text-slate-700 hover:text-slate-400 p-1 rounded transition-colors inline-flex items-center gap-1 cursor-pointer"
-            title="Administration & Base de données"
-            aria-label="Portail Privé"
-          >
-            <Lock className="w-3 h-3 text-slate-700 hover:text-slate-400" />
-            <span className="text-[10px] text-slate-600 hover:text-slate-400">Accès Fondateur</span>
-          </button>
-        )}
+        <button
+          onClick={onNavigateHome}
+          className="text-slate-400 hover:text-amber-400 font-semibold inline-flex items-center gap-1 cursor-pointer"
+        >
+          <Home className="w-3 h-3" />
+          <span>{t('nav.home')}</span>
+        </button>
       </div>
     </footer>
   );

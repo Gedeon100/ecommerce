@@ -31,19 +31,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   authPromptReason,
   onAuthSuccess,
 }) => {
-  if (!isOpen) return null;
-
   const [mode, setMode] = useState<'login' | 'register_buyer' | 'register_seller'>(initialMode);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Sync mode with initialMode whenever modal opens or initialMode changes
-  React.useEffect(() => {
-    if (isOpen) {
-      setMode(initialMode);
-      setErrorMsg('');
-    }
-  }, [isOpen, initialMode]);
 
   // Common Login fields
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -67,6 +57,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [sellerCity, setSellerCity] = useState('Cotonou');
   const [sellerCategory, setSellerCategory] = useState('Mode & Vêtements');
   const [sellerDesc, setSellerDesc] = useState('');
+
+  // Sync mode with initialMode whenever modal opens or initialMode changes
+  React.useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      setErrorMsg('');
+    }
+  }, [isOpen, initialMode]);
+
+  if (!isOpen) return null;
 
   // --- Handlers ---
   const handleLogin = (e: React.FormEvent) => {

@@ -29,9 +29,9 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
   onTrackOrder,
   onOpenBonDeCommande,
 }) => {
-  if (!order) return null;
-
   const printableRef = useRef<HTMLDivElement>(null);
+
+  if (!order) return null;
 
   const handlePrint = () => {
     window.print();

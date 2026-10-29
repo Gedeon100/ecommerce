@@ -26,8 +26,6 @@ export const HighLoadMonitorModal: React.FC<HighLoadMonitorModalProps> = ({
   onClose,
   totalProductsCount,
 }) => {
-  if (!isOpen) return null;
-
   const [activeUsers, setActiveUsers] = useState(10480);
   const [latencyMs, setLatencyMs] = useState(16);
   const [requestsPerSec, setRequestsPerSec] = useState(2540);
@@ -37,6 +35,7 @@ export const HighLoadMonitorModal: React.FC<HighLoadMonitorModalProps> = ({
 
   // Simulate realistic real-time traffic pulse
   useEffect(() => {
+    if (!isOpen) return;
     const interval = setInterval(() => {
       setActiveUsers((prev) => {
         const delta = Math.floor(Math.random() * 61) - 28;
@@ -54,7 +53,9 @@ export const HighLoadMonitorModal: React.FC<HighLoadMonitorModalProps> = ({
       });
     }, 2500);
     return () => clearInterval(interval);
-  }, []);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const runStressTest = () => {
     setIsStressTesting(true);

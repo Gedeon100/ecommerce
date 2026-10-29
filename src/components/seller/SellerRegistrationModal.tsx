@@ -14,8 +14,6 @@ export const SellerRegistrationModal: React.FC<SellerRegistrationModalProps> = (
   onClose,
   onRegistrationSuccess,
 }) => {
-  if (!isOpen) return null;
-
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
@@ -29,6 +27,8 @@ export const SellerRegistrationModal: React.FC<SellerRegistrationModalProps> = (
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

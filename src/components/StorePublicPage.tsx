@@ -16,6 +16,7 @@ import {
   ArrowUpDown,
   ShieldCheck,
   ChevronLeft,
+  Ban,
 } from 'lucide-react';
 
 interface StorePublicPageProps {
@@ -76,6 +77,33 @@ export const StorePublicPage: React.FC<StorePublicPageProps> = ({
           <span>Retour à l'accueil BéninMarket</span>
         </button>
       </div>
+
+      {store.isBlocked && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-6">
+          <div className="bg-rose-950 text-white border border-rose-700 rounded-2xl p-6 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                <Ban className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">
+                  Boutique bloquée par l’administrateur BéninMarket
+                </h2>
+                <p className="text-xs text-rose-200 mt-1">
+                  Cette boutique et ses produits sont temporairement suspendus du catalogue public.
+                  {store.blockReason ? ` Motif : ${store.blockReason}` : ''}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onBackToMarketplace}
+              className="px-4 py-2 bg-white text-slate-900 font-bold rounded-xl text-xs hover:bg-slate-100 cursor-pointer shrink-0"
+            >
+              Retour aux boutiques actives
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Store Banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
