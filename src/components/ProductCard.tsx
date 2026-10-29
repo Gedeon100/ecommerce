@@ -34,6 +34,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <img
             src={mediaStorage.resolveUrl(product.images[0])}
             alt={product.name}
+            loading="lazy"
+            decoding="async"
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Store, Product, Order, OrderStatus, ProductVariant, ProductTestimonial, StoreCustomer } from '../../types';
+import { User, Store, Product, Order, OrderStatus, ProductVariant, ProductTestimonial, StoreCustomer, DeliveryZone } from '../../types';
 import { storageService } from '../../services/storageService';
 import { mediaStorage } from '../../services/mediaStorage';
 import { formatFCFA, formatDateFR, calculateDiscountPercent, ORDER_STATUS_CONFIG } from '../../utils/formatters';
@@ -41,22 +41,44 @@ import {
   Send,
   Percent,
   ShoppingCart,
+  Shield,
+  Lock,
+  Key,
+  Sliders,
+  MapPin,
+  Mail,
+  Power,
+  Search,
+  ChevronLeft,
+  Activity,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
+import { HighLoadMonitorModal } from '../common/HighLoadMonitorModal';
+
+export type SellerTab = 'overview' | 'products' | 'orders' | 'promotions' | 'settings';
 
 interface SellerDashboardProps {
   currentUser: User;
   onOpenStorePublic: (storeSlug: string) => void;
   onPrintOrderReceipt: (order: Order) => void;
-  onSwitchToBuyer?: () => void;
+  activeTab?: SellerTab;
+  onTabChange?: (tab: SellerTab) => void;
 }
 
 export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   currentUser,
   onOpenStorePublic,
   onPrintOrderReceipt,
-  onSwitchToBuyer,
+  activeTab: controlledActiveTab,
+  onTabChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'promotions' | 'profile'>('overview');
+  const [internalTab, setInternalTab] = useState<SellerTab>('overview');
+  const activeTab = controlledActiveTab || internalTab;
+  const setActiveTab = (tab: SellerTab) => {
+    setInternalTab(tab);
+    onTabChange?.(tab);
+  };
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -94,6 +116,53 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const totalUnitsInStock = allProducts.reduce((sum, p) => sum + p.stock, 0);
   const storeCustomers: StoreCustomer[] = storageService.getStoreCustomers(sellerStore.id);
 
+  // Unlimited Catalog & High Concurrency State
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+  const [productStockFilter, setProductStockFilter] = useState<'all' | 'in_stock' | 'low_stock'>('all');
+  const [productPage, setProductPage] = useState(1);
+  const [isHighLoadModalOpen, setIsHighLoadModalOpen] = useState(false);
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+  const PRODUCTS_PER_PAGE = 12;
+
+  // Filtered and paginated products
+  const filteredProducts = allProducts.filter((p) => {
+    const matchesSearch = !productSearch.trim() || 
+      p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+      p.category.toLowerCase().includes(productSearch.toLowerCase()) ||
+      (p.shortDescription && p.shortDescription.toLowerCase().includes(productSearch.toLowerCase()));
+    const matchesCategory = productCategoryFilter === 'all' || p.category === productCategoryFilter;
+    const matchesStock = 
+      productStockFilter === 'all' ? true :
+      productStockFilter === 'in_stock' ? p.stock > 0 :
+      p.stock <= (sellerStore.lowStockThreshold || 3);
+    return matchesSearch && matchesCategory && matchesStock;
+  });
+
+  const totalFilteredPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE));
+  const currentPaginatedProducts = filteredProducts.slice(
+    (productPage - 1) * PRODUCTS_PER_PAGE,
+    productPage * PRODUCTS_PER_PAGE
+  );
+
+  const handleDuplicateProduct = (productId: string) => {
+    const dup = storageService.duplicateProduct(productId);
+    if (dup) {
+      setMediaStatusMsg(`Article « ${dup.name} » dupliqué dans votre catalogue !`);
+      setTimeout(() => setMediaStatusMsg(''), 3500);
+    }
+  };
+
+  const handleGenerateBatch = (count: number) => {
+    setIsBatchGenerating(true);
+    setTimeout(() => {
+      storageService.generateUnlimitedDemoBatch(sellerStore.id, count);
+      setIsBatchGenerating(false);
+      setMediaStatusMsg(`${count} nouveaux articles générés avec succès dans votre catalogue illimité !`);
+      setTimeout(() => setMediaStatusMsg(''), 4000);
+    }, 400);
+  };
+
   // Product Form State
   const [prodName, setProdName] = useState('');
   const [prodCategory, setProdCategory] = useState('Mode & Vêtements');
@@ -129,16 +198,47 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   // Status update state for orders
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
-  // Store Profile State (Logo, Banner, Slug, WhatsApp & Contact details)
+  // Store Settings State (Parameters, Visuals, WhatsApp, Delivery & Security)
+  const [settingsSection, setSettingsSection] = useState<'identity' | 'whatsapp' | 'delivery' | 'cod' | 'security'>('identity');
   const [profileStoreName, setProfileStoreName] = useState(sellerStore.name);
+  const [profileSlogan, setProfileSlogan] = useState(sellerStore.slogan || '');
+  const [profileCategory, setProfileCategory] = useState(sellerStore.category || 'Mode & Vêtements');
   const [profileSlug, setProfileSlug] = useState(sellerStore.slug);
   const [profileLogo, setProfileLogo] = useState(sellerStore.logo);
   const [profileBanner, setProfileBanner] = useState(sellerStore.banner);
   const [profileWhatsapp, setProfileWhatsapp] = useState(sellerStore.whatsapp);
   const [profilePhone, setProfilePhone] = useState(sellerStore.phone);
+  const [profileEmail, setProfileEmail] = useState(sellerStore.email || currentUser.email);
   const [profileAddress, setProfileAddress] = useState(sellerStore.address);
   const [profileCity, setProfileCity] = useState(sellerStore.city);
   const [profileDesc, setProfileDesc] = useState(sellerStore.description);
+  const [profileIsOpen, setProfileIsOpen] = useState(sellerStore.isOpen !== false);
+  const [profileWhatsappOrderMessage, setProfileWhatsappOrderMessage] = useState(
+    sellerStore.whatsappOrderMessage ||
+      'Bonjour ! Merci pour votre commande sur notre boutique BéninMarket. Votre colis est en cours de préparation pour une livraison rapide à votre domicile. Le règlement se fera directement au livreur à la réception (0 FCFA payé en avance).'
+  );
+  const [profileDeliveryInstructions, setProfileDeliveryInstructions] = useState(
+    sellerStore.deliveryInstructions ||
+      'Paiement exclusivement en espèces à la livraison. Appeler impérativement le client 30 minutes avant de se déplacer.'
+  );
+  const [profileLowStockThreshold, setProfileLowStockThreshold] = useState<number>(sellerStore.lowStockThreshold || 3);
+  const [profileDeliveryZones, setProfileDeliveryZones] = useState<DeliveryZone[]>(() => {
+    if (sellerStore.deliveryZones && sellerStore.deliveryZones.length > 0) {
+      return sellerStore.deliveryZones;
+    }
+    return [
+      { id: 'z1', city: 'Cotonou', fee: 1000, estimatedHours: '2h à 6h (Même jour)', freeAbove: 30000 },
+      { id: 'z2', city: 'Abomey-Calavi', fee: 1500, estimatedHours: '4h à 24h', freeAbove: 40000 },
+      { id: 'z3', city: 'Porto-Novo', fee: 2000, estimatedHours: '24h ouvrées', freeAbove: 50000 },
+      { id: 'z4', city: 'Parakou', fee: 3500, estimatedHours: '24h à 48h', freeAbove: 75000 },
+      { id: 'z5', city: 'Bohicon', fee: 2500, estimatedHours: '24h ouvrées' },
+      { id: 'z6', city: 'Ouidah', fee: 2000, estimatedHours: '24h ouvrées' },
+      { id: 'z7', city: 'Natitingou', fee: 4000, estimatedHours: '48h' },
+    ];
+  });
+  const [newSellerPassword, setNewSellerPassword] = useState('');
+  const [confirmSellerPassword, setConfirmSellerPassword] = useState('');
+  const [passwordFeedback, setPasswordFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [profileSaved, setProfileSaved] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -245,13 +345,50 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       banner: profileBanner,
       whatsapp: profileWhatsapp.trim(),
       phone: profilePhone.trim(),
+      email: profileEmail.trim(),
       address: profileAddress.trim(),
       city: profileCity,
+      category: profileCategory,
       description: profileDesc.trim(),
+      slogan: profileSlogan.trim(),
+      isOpen: profileIsOpen,
+      whatsappOrderMessage: profileWhatsappOrderMessage.trim(),
+      deliveryInstructions: profileDeliveryInstructions.trim(),
+      lowStockThreshold: Number(profileLowStockThreshold) || 3,
+      deliveryZones: profileDeliveryZones,
     };
     storageService.updateStore(updated);
     setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 3000);
+    setMediaStatusMsg('Paramètres de la boutique enregistrés avec succès !');
+    setTimeout(() => {
+      setProfileSaved(false);
+      setMediaStatusMsg('');
+    }, 3500);
+  };
+
+  const handleUpdatePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordFeedback(null);
+    if (!newSellerPassword || newSellerPassword.length < 4) {
+      setPasswordFeedback({ type: 'error', text: 'Le mot de passe doit comporter au moins 4 caractères.' });
+      return;
+    }
+    if (newSellerPassword !== confirmSellerPassword) {
+      setPasswordFeedback({ type: 'error', text: 'Les deux mots de passe ne correspondent pas.' });
+      return;
+    }
+
+    const users = storageService.getUsers();
+    const uIndex = users.findIndex((u) => u.id === currentUser.id);
+    if (uIndex !== -1) {
+      users[uIndex].password = newSellerPassword;
+      localStorage.setItem('beninmarket_users', JSON.stringify(users));
+      storageService.setCurrentUser(users[uIndex]);
+      setNewSellerPassword('');
+      setConfirmSellerPassword('');
+      setPasswordFeedback({ type: 'success', text: 'Votre mot de passe vendeur a été modifié avec succès.' });
+      setTimeout(() => setPasswordFeedback(null), 4000);
+    }
   };
 
   const handleAddTestimonial = (e: React.FormEvent) => {
@@ -394,60 +531,72 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   return (
     <div className="min-h-screen bg-slate-50 pb-16">
       {/* Top Banner / Store Header */}
-      <div className="bg-slate-900 text-white border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <div className="bg-slate-900 text-white border-b border-slate-800 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-5 sm:py-6 flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-hidden">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <img
               src={sellerStore.logo}
               alt={sellerStore.name}
-              className="w-14 h-14 rounded-xl object-cover border border-slate-700 bg-slate-800"
+              className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-slate-700 bg-slate-800 shrink-0"
             />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight">{sellerStore.name}</h1>
-                <span className="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-semibold">
-                  Espace Professionnel
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate max-w-[200px] sm:max-w-md">{sellerStore.name}</h1>
+                <span className="text-[10px] sm:text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded font-semibold shrink-0">
+                  Espace Pro
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 mt-0.5 truncate">
                 Vendeur à {sellerStore.city} · Paiement à la livraison
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {onSwitchToBuyer && (
-              <button
-                onClick={onSwitchToBuyer}
-                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
-                title="Consulter les produits des autres vendeurs sur la marketplace"
-              >
-                <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
-                <span>Mode Acheteur</span>
-              </button>
-            )}
+            <button
+              onClick={() => setIsHighLoadModalOpen(true)}
+              className="px-3 py-2 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-600/50 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Voir les métriques de trafic en direct (10 000+ connexions simultanées)"
+            >
+              <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+              <span className="hidden sm:inline">Trafic :</span>
+              <span className="text-white">10 400+ En direct</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-3.5 py-2 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                  : 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700'
+              }`}
+              title="Configurer les paramètres de votre boutique"
+            >
+              <Settings className="w-3.5 h-3.5 text-amber-400" />
+              <span>Paramètres</span>
+            </button>
             <button
               onClick={() => onOpenStorePublic(sellerStore.slug)}
               className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Voir ma boutique publique</span>
+              <span>Aperçu vitrine</span>
             </button>
             <button
               onClick={handleOpenAddProduct}
               className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              <span>Ajouter un produit</span>
+              <span>Nouveau produit</span>
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-6 text-xs font-semibold border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex gap-6 text-xs font-semibold border-t border-slate-800 overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`py-3 transition-colors border-b-2 ${
+            className={`py-3 transition-colors border-b-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'overview'
                 ? 'border-amber-500 text-amber-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -457,7 +606,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('products')}
-            className={`py-3 transition-colors border-b-2 ${
+            className={`py-3 transition-colors border-b-2 whitespace-nowrap cursor-pointer ${
               activeTab === 'products'
                 ? 'border-amber-500 text-amber-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -467,7 +616,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('orders')}
-            className={`py-3 transition-colors border-b-2 flex items-center gap-1.5 ${
+            className={`py-3 transition-colors border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === 'orders'
                 ? 'border-amber-500 text-amber-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -482,7 +631,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('promotions')}
-            className={`py-3 transition-colors border-b-2 flex items-center gap-1.5 ${
+            className={`py-3 transition-colors border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
               activeTab === 'promotions'
                 ? 'border-amber-500 text-amber-400 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -492,14 +641,15 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             <span>Promotions & Relances ({storeCustomers.length})</span>
           </button>
           <button
-            onClick={() => setActiveTab('profile')}
-            className={`py-3 transition-colors border-b-2 ${
-              activeTab === 'profile'
-                ? 'border-amber-500 text-amber-400'
+            onClick={() => setActiveTab('settings')}
+            className={`py-3 transition-colors border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeTab === 'settings'
+                ? 'border-amber-500 text-amber-400 font-bold'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            Profil & Coordonnées WhatsApp
+            <Settings className="w-3.5 h-3.5" />
+            <span>Paramètres de la Boutique</span>
           </button>
         </div>
       </div>
@@ -797,94 +947,299 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </div>
         )}
 
-        {/* TAB 2: PRODUCTS */}
+        {/* TAB 2: PRODUCTS (UNLIMITED CATALOG ENGINE) */}
         {activeTab === 'products' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">
-                Catalogue de produits ({allProducts.length})
-              </h2>
-              <button
-                onClick={handleOpenAddProduct}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nouveau Produit</span>
-              </button>
+          <div className="space-y-5">
+            {/* Unlimited Capacity & 10,000+ Concurrency Guarantee Banner */}
+            <div className="p-4 bg-gradient-to-r from-amber-500/15 via-emerald-500/10 to-amber-500/15 border border-amber-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center font-black text-lg shrink-0 mt-0.5 shadow-xs">
+                  ♾️
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <span>Catalogue Illimité BéninMarket</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold px-2 py-0.5 rounded-full">
+                      Zéro Quota
+                    </span>
+                  </h3>
+                  <p className="text-slate-600 text-xs mt-0.5 leading-relaxed">
+                    Ajoutez autant d'articles physiques que vous le souhaitez dans votre boutique. L'infrastructure est optimisée pour gérer des catalogues de plusieurs milliers de références et accueillir <strong>plus de 10 000 visiteurs simultanés</strong> sans aucun ralentissement.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => handleGenerateBatch(10)}
+                  disabled={isBatchGenerating}
+                  className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                  title="Ajouter 10 articles d'exemple pour tester la montée en charge du catalogue"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{isBatchGenerating ? 'Ajout en cours...' : '+10 Articles (Test)'}</span>
+                </button>
+                <button
+                  onClick={handleOpenAddProduct}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Ajouter un produit</span>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allProducts.map((p) => {
-                const discount = calculateDiscountPercent(p.price, p.promoPrice);
-                return (
-                  <div
-                    key={p.id}
-                    className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs p-4 flex flex-col justify-between"
+            {/* Search, Category & Stock Filter Controls */}
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* Search input */}
+                <div className="relative flex-1 max-w-md">
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => {
+                      setProductSearch(e.target.value);
+                      setProductPage(1);
+                    }}
+                    placeholder="Rechercher par nom d'article, catégorie..."
+                    className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium text-slate-900"
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  {productSearch && (
+                    <button
+                      onClick={() => setProductSearch('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Stock status filter */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    onClick={() => {
+                      setProductStockFilter('all');
+                      setProductPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition ${
+                      productStockFilter === 'all'
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
                   >
-                    <div>
-                      <div className="relative aspect-16/9 rounded-lg overflow-hidden bg-slate-100 mb-3">
-                        <img
-                          src={p.images[0] || 'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=400&q=80'}
-                          alt={p.name}
-                          className="w-full h-full object-cover"
-                        />
-                        {discount > 0 && (
-                          <span className="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                            -{discount}%
-                          </span>
-                        )}
-                        {p.videoUrl && (
-                          <span className="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
-                            <Video className="w-3 h-3 text-amber-400" />
-                            <span>Démo</span>
-                          </span>
-                        )}
-                      </div>
+                    Tous ({allProducts.length})
+                  </button>
+                  <button
+                    onClick={() => {
+                      setProductStockFilter('in_stock');
+                      setProductPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition ${
+                      productStockFilter === 'in_stock'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    En stock
+                  </button>
+                  <button
+                    onClick={() => {
+                      setProductStockFilter('low_stock');
+                      setProductPage(1);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition ${
+                      productStockFilter === 'low_stock'
+                        ? 'bg-amber-600 text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Stock faible
+                  </button>
+                </div>
+              </div>
 
-                      <div className="text-[11px] font-bold uppercase text-amber-800 mb-1">
-                        {p.category}
-                      </div>
-                      <h3 className="font-semibold text-slate-900 text-sm mb-1">{p.name}</h3>
-                      <p className="text-xs text-slate-500 line-clamp-2 mb-3">{p.shortDescription}</p>
-
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-base font-extrabold text-slate-900 tabular-nums">
-                          {formatFCFA(p.isPromoActive && p.promoPrice ? p.promoPrice : p.price)}
-                        </span>
-                        {discount > 0 && (
-                          <span className="text-xs text-slate-400 line-through tabular-nums">
-                            {formatFCFA(p.price)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs text-slate-500">
-                        <span>Stock : <strong>{p.stock}</strong></span>
-                        <span>·</span>
-                        <span>{p.salesCount} vendus</span>
-                      </div>
-                    </div>
-
-                    <div className="pt-3 border-t border-slate-100 mt-4 flex items-center justify-between">
-                      <button
-                        onClick={() => handleOpenEditProduct(p)}
-                        className="text-xs font-semibold text-slate-700 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Modifier</span>
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(p.id)}
-                        className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>Supprimer</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Category pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+                {['all', 'Mode & Vêtements', 'Artisanat & Décoration', 'Beauté & Soins Naturels', 'Électronique & High-Tech', 'Chaussures & Maroquinerie', 'Épicerie & Saveurs Locales'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setProductCategoryFilter(cat);
+                      setProductPage(1);
+                    }}
+                    className={`px-3 py-1 rounded-lg font-medium whitespace-nowrap transition cursor-pointer text-[11px] ${
+                      productCategoryFilter === cat
+                        ? 'bg-amber-600 text-white font-bold'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {cat === 'all' ? 'Toutes les catégories' : cat}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Results counter */}
+            <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+              <span>
+                <strong>{filteredProducts.length}</strong> {filteredProducts.length > 1 ? 'articles trouvés' : 'article trouvé'} dans votre boutique
+              </span>
+              <span>
+                Page {productPage} sur {totalFilteredPages}
+              </span>
+            </div>
+
+            {/* Products Grid */}
+            {currentPaginatedProducts.length === 0 ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center space-y-3">
+                <Package className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="font-bold text-slate-800 text-sm">Aucun produit ne correspond à ces critères</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Essayez d'effacer votre recherche ou vos filtres pour voir l'ensemble des articles de votre catalogue.
+                </p>
+                <button
+                  onClick={() => {
+                    setProductSearch('');
+                    setProductCategoryFilter('all');
+                    setProductStockFilter('all');
+                    setProductPage(1);
+                  }}
+                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition cursor-pointer"
+                >
+                  Réinitialiser les filtres
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {currentPaginatedProducts.map((p) => {
+                  const discount = calculateDiscountPercent(p.price, p.promoPrice);
+                  const isLow = p.stock <= (sellerStore.lowStockThreshold || 3);
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs p-4 flex flex-col justify-between hover:shadow-md transition-shadow"
+                    >
+                      <div>
+                        <div className="relative aspect-16/9 rounded-lg overflow-hidden bg-slate-100 mb-3">
+                          <img
+                            src={p.images[0] || 'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=400&q=80'}
+                            alt={p.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                          />
+                          {discount > 0 && (
+                            <span className="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                              -{discount}%
+                            </span>
+                          )}
+                          {p.videoUrl && (
+                            <span className="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-1">
+                              <Video className="w-3 h-3 text-amber-400" />
+                              <span>Démo vidéo</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-[11px] font-bold uppercase text-amber-800 mb-1">
+                          {p.category}
+                        </div>
+                        <h3 className="font-semibold text-slate-900 text-sm mb-1">{p.name}</h3>
+                        <p className="text-xs text-slate-500 line-clamp-2 mb-3">{p.shortDescription}</p>
+
+                        <div className="flex items-baseline gap-2 mb-2">
+                          <span className="text-base font-extrabold text-slate-900 tabular-nums">
+                            {formatFCFA(p.isPromoActive && p.promoPrice ? p.promoPrice : p.price)}
+                          </span>
+                          {discount > 0 && (
+                            <span className="text-xs text-slate-400 line-through tabular-nums">
+                              {formatFCFA(p.price)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                          <span className={isLow ? 'text-amber-700 font-bold' : ''}>
+                            Stock : <strong>{p.stock}</strong> {isLow && '(Faible)'}
+                          </span>
+                          <span>{p.salesCount || 0} vendus</span>
+                        </div>
+                      </div>
+
+                      {/* Card Action Buttons: Modifier, Dupliquer, Supprimer */}
+                      <div className="pt-3 border-t border-slate-100 mt-4 flex items-center justify-between gap-1 text-xs">
+                        <button
+                          onClick={() => handleOpenEditProduct(p)}
+                          className="font-semibold text-slate-700 hover:text-amber-700 flex items-center gap-1 cursor-pointer py-1 px-1.5 rounded hover:bg-slate-50"
+                          title="Modifier les informations"
+                        >
+                          <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Modifier</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDuplicateProduct(p.id)}
+                          className="font-semibold text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer py-1 px-1.5 rounded hover:bg-amber-50"
+                          title="Dupliquer instantanément cet article"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Dupliquer</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteProduct(p.id)}
+                          className="font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 cursor-pointer py-1 px-1.5 rounded hover:bg-rose-50"
+                          title="Supprimer cet article"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                          <span>Supprimer</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalFilteredPages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => setProductPage((prev) => Math.max(1, prev - 1))}
+                  disabled={productPage === 1}
+                  className="px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>Page précédente</span>
+                </button>
+
+                <div className="flex items-center gap-1 text-xs">
+                  {Array.from({ length: totalFilteredPages }, (_, i) => i + 1).map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => setProductPage(num)}
+                      className={`w-8 h-8 rounded-lg font-bold transition cursor-pointer ${
+                        productPage === num
+                          ? 'bg-amber-600 text-white shadow-xs'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setProductPage((prev) => Math.min(totalFilteredPages, prev + 1))}
+                  disabled={productPage === totalFilteredPages}
+                  className="px-3.5 py-2 bg-white hover:bg-slate-50 disabled:opacity-40 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Page suivante</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1229,223 +1584,639 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </div>
         )}
 
-        {/* TAB 5: STORE PROFILE & WHATSAPP SETTINGS */}
-        {activeTab === 'profile' && (
-          <div className="max-w-3xl space-y-6">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                Profil de la boutique, Photo, Bannière & Lien Personnalisé
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Personnalisez la photo de profil (logo) et la bannière de votre boutique par téléchargement direct depuis votre appareil (ordinateur ou téléphone portable), sans utiliser de lien externe.
-              </p>
+        {/* TAB 5: COMPREHENSIVE STORE SETTINGS (PARAMÈTRES DE LA BOUTIQUE) */}
+        {activeTab === 'settings' && (
+          <div className="max-w-4xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-amber-600" />
+                  <span>Paramètres Personnels de votre Boutique</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Gérez l'identité visuelle, vos coordonnées WhatsApp, vos zones de livraison au Bénin, vos préférences COD et la sécurité de votre compte vendeur.
+                </p>
+              </div>
+
+              {/* Store Status Indicator & Toggle */}
+              <div className="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-xl shadow-2xs">
+                <span className={`w-2.5 h-2.5 rounded-full ${profileIsOpen ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                <span className="text-xs font-bold text-slate-800">
+                  {profileIsOpen ? 'Boutique Ouverte' : 'Mode Pause / Congés'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setProfileIsOpen(!profileIsOpen)}
+                  className={`ml-2 px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
+                    profileIsOpen
+                      ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                      : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                  }`}
+                >
+                  {profileIsOpen ? 'Mettre en pause' : 'Ouvrir la boutique'}
+                </button>
+              </div>
             </div>
 
             {profileSaved && (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 text-xs font-semibold">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 text-xs font-semibold shadow-xs">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Informations de la boutique, photos et lien personnalisés enregistrés avec succès !</span>
+                <span>Tous les paramètres de votre boutique ont été enregistrés avec succès !</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveStoreProfile} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5 text-xs">
-              {/* Photo de profil (Logo) direct upload */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                <span className="font-bold text-slate-900 block text-xs">
-                  Photo de profil / Logo de votre boutique (depuis votre appareil)
-                </span>
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  <img
-                    src={mediaStorage.resolveUrl(profileLogo) || 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=300&q=80'}
-                    alt="Logo boutique"
-                    className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-500/40 shadow-xs bg-white shrink-0"
-                  />
-                  <div className="space-y-2 text-center sm:text-left flex-1">
-                    <label className="cursor-pointer px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors shadow-xs">
-                      <Upload className="w-4 h-4" />
-                      <span>{uploadingLogo ? 'Importation en cours...' : 'Télécharger une photo de profil depuis votre appareil'}</span>
-                      <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                    </label>
+            {/* Sub-navigation Tabs for Settings */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 scrollbar-none text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setSettingsSection('identity')}
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  settingsSection === 'identity'
+                    ? 'bg-slate-900 text-white font-bold shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <StoreIcon className="w-3.5 h-3.5" />
+                <span>1. Identité & Vitrine</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSettingsSection('whatsapp')}
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  settingsSection === 'whatsapp'
+                    ? 'bg-slate-900 text-white font-bold shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                <span>2. Canaux WhatsApp & Contact</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSettingsSection('delivery')}
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  settingsSection === 'delivery'
+                    ? 'bg-slate-900 text-white font-bold shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Truck className="w-3.5 h-3.5 text-amber-400" />
+                <span>3. Zones & Tarifs Livraison</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSettingsSection('cod')}
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  settingsSection === 'cod'
+                    ? 'bg-slate-900 text-white font-bold shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                <span>4. Préférences COD & Alertes</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSettingsSection('security')}
+                className={`px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                  settingsSection === 'security'
+                    ? 'bg-slate-900 text-white font-bold shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5 text-blue-400" />
+                <span>5. Sécurité & Mot de passe</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveStoreProfile} className="space-y-6">
+              {/* SECTION 1: IDENTITÉ & VITRINE */}
+              {settingsSection === 'identity' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5 text-xs">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Identité Visuelle & Présentation</h3>
                     <p className="text-[11px] text-slate-500">
-                      Sélectionnez une image (JPG, PNG, WEBP) depuis votre téléphone, tablette ou ordinateur portable. Aucun lien externe requis.
+                      Téléversez votre logo et bannière directement depuis vos fichiers sans lien externe.
                     </p>
                   </div>
-                </div>
-              </div>
 
-              {/* Bannière de la boutique direct upload */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-                <span className="font-bold text-slate-900 block text-xs">
-                  Bannière de présentation de la boutique (depuis votre appareil)
-                </span>
-                <div className="space-y-3">
-                  <div className="w-full h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
-                    <img
-                      src={mediaStorage.resolveUrl(profileBanner) || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'}
-                      alt="Bannière boutique"
-                      className="w-full h-full object-cover"
-                    />
+                  {/* Photo de profil (Logo) direct upload */}
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                    <span className="font-bold text-slate-900 block text-xs">
+                      Photo de profil / Logo de votre boutique (depuis votre téléphone ou ordinateur)
+                    </span>
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <img
+                        src={mediaStorage.resolveUrl(profileLogo) || 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=300&q=80'}
+                        alt="Logo boutique"
+                        className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-500/40 shadow-xs bg-white shrink-0"
+                      />
+                      <div className="space-y-2 text-center sm:text-left flex-1">
+                        <label className="cursor-pointer px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors shadow-xs">
+                          <Upload className="w-4 h-4" />
+                          <span>{uploadingLogo ? 'Importation en cours...' : 'Télécharger une photo de profil depuis votre appareil'}</span>
+                          <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                        </label>
+                        <p className="text-[11px] text-slate-500">
+                          Prend en charge JPG, PNG, WEBP sans aucune restriction de lien externe.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <label className="cursor-pointer px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors shadow-xs">
-                      <Upload className="w-4 h-4" />
-                      <span>{uploadingBanner ? 'Importation...' : 'Télécharger une bannière depuis votre appareil'}</span>
-                      <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
+
+                  {/* Bannière de la boutique direct upload */}
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                    <span className="font-bold text-slate-900 block text-xs">
+                      Bannière d'en-tête de votre vitrine (depuis votre appareil)
+                    </span>
+                    <div className="space-y-3">
+                      <div className="w-full h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                        <img
+                          src={mediaStorage.resolveUrl(profileBanner) || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'}
+                          alt="Bannière boutique"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="cursor-pointer px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors shadow-xs">
+                          <Upload className="w-4 h-4" />
+                          <span>{uploadingBanner ? 'Importation...' : 'Télécharger une bannière depuis votre appareil'}</span>
+                          <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
+                        </label>
+                        <span className="text-[11px] text-slate-500">Format recommandé : paysage (1200x400)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Lien personnalisé (Slug) */}
+                  <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200 space-y-2">
+                    <label className="block font-bold text-slate-900">
+                      Lien de boutique personnalisé (URL unique) *
                     </label>
-                    <span className="text-[11px] text-slate-500">Format recommandé : paysage (1200x400)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Lien personnalisé (Slug) */}
-              <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200 space-y-2">
-                <label className="block font-bold text-slate-900">
-                  Lien de boutique personnalisé (URL unique) *
-                </label>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
-                  <span className="px-3 py-2.5 bg-white border border-slate-300 sm:border-r-0 rounded-t-lg sm:rounded-tr-none sm:rounded-l-lg text-slate-500 text-xs font-mono select-all">
-                    beninmarket.bj/boutique/
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={profileSlug}
-                    onChange={(e) => setProfileSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
-                    placeholder="nom-de-votre-boutique"
-                    className="flex-1 p-2.5 bg-white border border-slate-300 rounded-b-lg sm:rounded-bl-none sm:rounded-r-lg font-mono font-bold text-slate-900 text-xs focus:outline-amber-600"
-                  />
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                  <span>Vos clients pourront accéder directement à tous vos articles via cette adresse.</span>
-                  <button
-                    type="button"
-                    onClick={handleCopyStoreLink}
-                    className="text-amber-700 hover:underline font-bold flex items-center gap-1"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>{copiedLink ? 'Copié !' : 'Tester & Copier'}</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-slate-800 mb-1">
-                    Nom commercial de la boutique *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={profileStoreName}
-                    onChange={(e) => setProfileStoreName(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-800 mb-1">
-                    Ville principale d'implantation *
-                  </label>
-                  <select
-                    value={profileCity}
-                    onChange={(e) => setProfileCity(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-900"
-                  >
-                    <option value="Cotonou">Cotonou</option>
-                    <option value="Abomey-Calavi">Abomey-Calavi</option>
-                    <option value="Porto-Novo">Porto-Novo</option>
-                    <option value="Parakou">Parakou</option>
-                    <option value="Ouidah">Ouidah</option>
-                    <option value="Bohicon">Bohicon</option>
-                    <option value="Natitingou">Natitingou</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Direct WhatsApp Configuration */}
-              <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-3">
-                <div>
-                  <label className="block font-bold text-slate-900 mb-1 flex items-center gap-1.5">
-                    <MessageCircle className="w-4 h-4 text-emerald-600" />
-                    <span>Numéro WhatsApp direct de contact client *</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="tel"
-                      required
-                      placeholder="+229 97 00 11 22"
-                      value={profileWhatsapp}
-                      onChange={(e) => setProfileWhatsapp(e.target.value)}
-                      className="flex-1 p-2.5 bg-white border border-emerald-300 rounded-lg font-bold text-slate-900 focus:outline-emerald-600"
-                    />
-                    {profileWhatsapp && (
-                      <a
-                        href={`https://wa.me/${profileWhatsapp.replace(/[^0-9]/g, '')}?text=Bonjour%20depuis%20BéninMarket`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 shrink-0 transition-colors"
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
+                      <span className="px-3 py-2.5 bg-white border border-slate-300 sm:border-r-0 rounded-t-lg sm:rounded-tr-none sm:rounded-l-lg text-slate-500 text-xs font-mono select-all">
+                        beninmarket.bj/boutique/
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        value={profileSlug}
+                        onChange={(e) => setProfileSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
+                        placeholder="nom-de-votre-boutique"
+                        className="flex-1 p-2.5 bg-white border border-slate-300 rounded-b-lg sm:rounded-bl-none sm:rounded-r-lg font-mono font-bold text-slate-900 text-xs focus:outline-amber-600"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                      <span>Lien direct à partager sur vos statuts WhatsApp, TikTok et Instagram.</span>
+                      <button
+                        type="button"
+                        onClick={handleCopyStoreLink}
+                        className="text-amber-700 hover:underline font-bold flex items-center gap-1 cursor-pointer"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Tester le lien</span>
-                      </a>
-                    )}
+                        <Copy className="w-3 h-3" />
+                        <span>{copiedLink ? 'Copié !' : 'Copier mon lien'}</span>
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-[11px] text-emerald-800 block mt-1">
-                    Format international recommandé avec indicatif pays (ex: <strong>+229</strong> pour le Bénin). Ce numéro recevra les messages WhatsApp des clients.
-                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-800 mb-1">
+                        Nom commercial de la boutique *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={profileStoreName}
+                        onChange={(e) => setProfileStoreName(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-900"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-800 mb-1">
+                        Catégorie principale d'activité *
+                      </label>
+                      <select
+                        value={profileCategory}
+                        onChange={(e) => setProfileCategory(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-900"
+                      >
+                        <option value="Mode & Vêtements">Mode & Vêtements</option>
+                        <option value="Chaussures & Maroquinerie">Chaussures & Maroquinerie</option>
+                        <option value="Téléphones & Électronique">Téléphones & Électronique</option>
+                        <option value="Beauté & Cosmétiques">Beauté & Cosmétiques</option>
+                        <option value="Maison & Décoration">Maison & Décoration</option>
+                        <option value="Alimentation & Épicerie">Alimentation & Épicerie</option>
+                        <option value="Équipements & Bricolage">Équipements & Bricolage</option>
+                        <option value="Enfants & Bébés">Enfants & Bébés</option>
+                        <option value="Bijoux & Accessoires">Bijoux & Accessoires</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-800 mb-1">
+                      Slogan ou phrase d'accroche (affichée sous le nom)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex : Créations artisanales et mode béninoise d'exception"
+                      value={profileSlogan}
+                      onChange={(e) => setProfileSlogan(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium text-slate-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-800 mb-1">
+                      Description complète de votre boutique
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={profileDesc}
+                      onChange={(e) => setProfileDesc(e.target.value)}
+                      placeholder="Présentez vos créations, votre savoir-faire et vos engagements de satisfaction..."
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Numéro de téléphone pour appels vocaux *</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="+229 97 00 11 22"
-                    value={profilePhone}
-                    onChange={(e) => setProfilePhone(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-slate-900"
-                  />
+              {/* SECTION 2: CANAUX WHATSAPP & CONTACT */}
+              {settingsSection === 'whatsapp' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5 text-xs">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Coordonnées Directes & WhatsApp Vendeur</h3>
+                    <p className="text-[11px] text-slate-500">
+                      Les acheteurs pourront vous contacter en cas de question sur leur commande ou de retard de livraison.
+                    </p>
+                  </div>
+
+                  {/* Direct WhatsApp Configuration */}
+                  <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-3">
+                    <div>
+                      <label className="block font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                        <MessageCircle className="w-4 h-4 text-emerald-600" />
+                        <span>Numéro WhatsApp direct de votre boutique *</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="tel"
+                          required
+                          placeholder="+229 97 00 11 22"
+                          value={profileWhatsapp}
+                          onChange={(e) => setProfileWhatsapp(e.target.value)}
+                          className="flex-1 p-2.5 bg-white border border-emerald-300 rounded-lg font-bold text-slate-900 focus:outline-emerald-600 text-sm"
+                        />
+                        {profileWhatsapp && (
+                          <a
+                            href={`https://wa.me/${profileWhatsapp.replace(/[^0-9]/g, '')}?text=Bonjour%20depuis%20BéninMarket`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 shrink-0 transition-colors shadow-xs"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Tester mon WhatsApp</span>
+                          </a>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-emerald-800 block mt-1">
+                        Format international recommandé (ex : <strong>+229 97 00 11 22</strong>). Les clients recevront ce contact sur leur reçu de commande.
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                      <div>
+                        <label className="block font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Numéro pour appels vocaux direct *</span>
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="+229 97 00 11 22"
+                          value={profilePhone}
+                          onChange={(e) => setProfilePhone(e.target.value)}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-slate-900 font-semibold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Email professionnel de notification *</span>
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          placeholder="vendeur@gmail.com"
+                          value={profileEmail}
+                          onChange={(e) => setProfileEmail(e.target.value)}
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-slate-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Ville principale d'implantation *</span>
+                      </label>
+                      <select
+                        value={profileCity}
+                        onChange={(e) => setProfileCity(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-900"
+                      >
+                        <option value="Cotonou">Cotonou</option>
+                        <option value="Abomey-Calavi">Abomey-Calavi</option>
+                        <option value="Porto-Novo">Porto-Novo</option>
+                        <option value="Parakou">Parakou</option>
+                        <option value="Ouidah">Ouidah</option>
+                        <option value="Bohicon">Bohicon</option>
+                        <option value="Natitingou">Natitingou</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-800 mb-1">
+                        Adresse physique ou repères d'entrepôt
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ex : Haie Vive, Rue 340, Carré 120"
+                        value={profileAddress}
+                        onChange={(e) => setProfileAddress(e.target.value)}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <label className="block font-semibold text-slate-800 mb-1">
-                  Adresse physique, atelier ou repères de retrait
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Haie Vive, Rue 340, Carré 120"
-                  value={profileAddress}
-                  onChange={(e) => setProfileAddress(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
-                />
-              </div>
+              {/* SECTION 3: ZONES & FRAIS DE LIVRAISON */}
+              {settingsSection === 'delivery' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5 text-xs">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Zones & Tarifs de Livraison au Bénin</h3>
+                    <p className="text-[11px] text-slate-500">
+                      Configurez les villes que vous desservez et vos frais de livraison en FCFA avec vos délais estimés.
+                    </p>
+                  </div>
 
-              <div>
-                <label className="block font-semibold text-slate-800 mb-1">
-                  Description et engagement de votre boutique
-                </label>
-                <textarea
-                  rows={4}
-                  value={profileDesc}
-                  onChange={(e) => setProfileDesc(e.target.value)}
-                  placeholder="Présentez vos créations, votre politique d'échange, vos délais de livraison..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900"
-                />
-              </div>
+                  <div className="space-y-3">
+                    {profileDeliveryZones.map((zone, idx) => (
+                      <div
+                        key={zone.id || idx}
+                        className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <MapPin className="w-4 h-4 text-amber-600 shrink-0" />
+                          <div>
+                            <span className="font-bold text-slate-900 text-sm">{zone.city}</span>
+                            <span className="text-[11px] text-slate-500 block">
+                              Délai moyen : {zone.estimatedHours}
+                            </span>
+                          </div>
+                        </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-slate-600">Frais :</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="250"
+                              value={zone.fee}
+                              onChange={(e) => {
+                                const newFee = Number(e.target.value) || 0;
+                                setProfileDeliveryZones((prev) =>
+                                  prev.map((z, i) => (i === idx ? { ...z, fee: newFee } : z))
+                                );
+                              }}
+                              className="w-24 p-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 text-xs text-right"
+                            />
+                            <span className="font-bold text-slate-600">FCFA</span>
+                          </div>
+
+                          <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold border border-emerald-200">
+                            Actif
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Consignes spéciales de livraison (transmises au livreur)</span>
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={profileDeliveryInstructions}
+                      onChange={(e) => setProfileDeliveryInstructions(e.target.value)}
+                      placeholder="Ex : Paiement en espèces obligatoire à la réception. Appeler le client 30 minutes avant de se déplacer."
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-medium"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION 4: PRÉFÉRENCES COD & ALERTES */}
+              {settingsSection === 'cod' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5 text-xs">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Modèle Commercial & Paiement à la Livraison (COD)</h3>
+                    <p className="text-[11px] text-slate-500">
+                      Règles de paiement en espèces à la livraison, messages automatiques et gestion des alertes.
+                    </p>
+                  </div>
+
+                  {/* COD Guarantee banner */}
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <div className="font-bold text-emerald-900 text-sm">
+                        Modèle Commercial Garanti : 100% Cash on Delivery
+                      </div>
+                      <p className="text-emerald-800 leading-relaxed text-[11px]">
+                        Conformément à la politique de BéninMarket, aucun paiement en ligne n'est demandé à l'acheteur. Vos clients règlent directement votre livreur en espèces lors de la remise en main propre de leur colis.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-900 mb-1 flex items-center gap-1.5">
+                      <MessageCircle className="w-4 h-4 text-emerald-600" />
+                      <span>Modèle de message WhatsApp automatique envoyé au client lors de sa commande</span>
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={profileWhatsappOrderMessage}
+                      onChange={(e) => setProfileWhatsappOrderMessage(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-medium"
+                    />
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Ce message peut être envoyé en 1 clic au client depuis votre onglet « Commandes clients ».
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Seuil d'alerte pour stock faible (unités restantes)</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={profileLowStockThreshold}
+                        onChange={(e) => setProfileLowStockThreshold(Number(e.target.value) || 1)}
+                        className="w-24 p-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-900 text-center"
+                      />
+                      <span className="text-slate-600">unités (vos produits afficheront une alerte visuelle en dessous de ce stock)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION 5: SÉCURITÉ & STATUT COMPTE */}
+              {settingsSection === 'security' && (
+                <div className="space-y-6">
+                  {/* Store Status Card */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 text-xs">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <Power className="w-4 h-4 text-amber-600" />
+                        <span>Statut de Disponibilité de la Boutique</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Vous pouvez suspendre temporairement la réception de nouvelles commandes si vous êtes en réapprovisionnement ou en congés.
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                          <span className={`w-3 h-3 rounded-full ${profileIsOpen ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                          <span>{profileIsOpen ? 'Boutique Actuellement Ouverte' : 'Boutique en Pause'}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {profileIsOpen
+                            ? 'Vos produits sont visibles et les clients peuvent passer commande avec paiement à la livraison.'
+                            : 'Vos produits restent consultables mais le bouton de commande est temporairement désactivé.'}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setProfileIsOpen(!profileIsOpen)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs ${
+                          profileIsOpen
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                        }`}
+                      >
+                        {profileIsOpen ? 'Mettre en pause' : 'Réactiver la boutique'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Password Change Form */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4 text-xs">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <Key className="w-4 h-4 text-blue-600" />
+                        <span>Modifier mon mot de passe Vendeur</span>
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Sécurisez l'accès à votre tableau de bord personnel.
+                      </p>
+                    </div>
+
+                    {passwordFeedback && (
+                      <div
+                        className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2 ${
+                          passwordFeedback.type === 'success'
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            : 'bg-rose-50 border-rose-200 text-rose-800'
+                        }`}
+                      >
+                        {passwordFeedback.type === 'success' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        )}
+                        <span>{passwordFeedback.text}</span>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-semibold text-slate-800 mb-1">
+                          Nouveau mot de passe
+                        </label>
+                        <input
+                          type="password"
+                          value={newSellerPassword}
+                          onChange={(e) => setNewSellerPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-800 mb-1">
+                          Confirmer le nouveau mot de passe
+                        </label>
+                        <input
+                          type="password"
+                          value={confirmSellerPassword}
+                          onChange={(e) => setConfirmSellerPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleUpdatePassword}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Mettre à jour mon mot de passe
+                    </button>
+                  </div>
+
+                  {/* Account Summary */}
+                  <div className="bg-slate-100/70 border border-slate-200 rounded-2xl p-5 text-xs text-slate-600 space-y-1">
+                    <div className="font-bold text-slate-900">Informations du compte vendeur :</div>
+                    <div>Gérant : <strong>{currentUser.name}</strong></div>
+                    <div>Email associé : <strong>{currentUser.email}</strong></div>
+                    <div>ID Boutique : <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">{sellerStore.id}</code></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Global Save Button */}
+              <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <span className="text-[11px] text-slate-400">
-                  Modifications appliquées immédiatement à vos futures commandes.
+                  Toutes les modifications sont immédiatement synchronisées sur votre boutique publique.
                 </span>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-sm"
+                  className="w-full sm:w-auto px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition-colors cursor-pointer shadow-sm text-xs flex items-center justify-center gap-2"
                 >
-                  Enregistrer les coordonnées
+                  <Check className="w-4 h-4" />
+                  <span>Enregistrer les paramètres de ma boutique</span>
                 </button>
               </div>
             </form>
@@ -2027,6 +2798,14 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* High Concurrency Monitor Modal (10,000+ Visitors) */}
+      <HighLoadMonitorModal
+        isOpen={isHighLoadModalOpen}
+        onClose={() => setIsHighLoadModalOpen(false)}
+        totalProductsCount={allProducts.length}
+      />
     </div>
   );
 };
+

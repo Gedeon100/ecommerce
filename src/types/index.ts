@@ -58,6 +58,12 @@ export interface Store {
   viewsCount?: number;
   cartAbandonCount?: number;
   cartAbandonTotal?: number;
+  slogan?: string;
+  isOpen?: boolean; // true = store open, false = store in vacation/pause mode
+  whatsappOrderMessage?: string;
+  deliveryInstructions?: string;
+  lowStockThreshold?: number;
+  codAccepted?: boolean;
   createdAt: string;
 }
 

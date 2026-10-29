@@ -16,6 +16,11 @@ import {
   ChevronRight,
   Home,
   X,
+  Settings,
+  Megaphone,
+  Eye,
+  LayoutDashboard,
+  Power,
 } from 'lucide-react';
 import { User, Store, Product } from '../types';
 import { storageService } from '../services/storageService';
@@ -40,6 +45,9 @@ interface HeaderProps {
   onSelectProduct?: (product: Product) => void;
   onSelectStore?: (storeSlug: string) => void;
   onSelectCity?: (city: string) => void;
+  sellerActiveTab?: 'overview' | 'products' | 'orders' | 'promotions' | 'settings';
+  onSellerTabChange?: (tab: 'overview' | 'products' | 'orders' | 'promotions' | 'settings') => void;
+  onPreviewOwnStore?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -60,6 +68,9 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectProduct,
   onSelectStore,
   onSelectCity,
+  sellerActiveTab = 'overview',
+  onSellerTabChange,
+  onPreviewOwnStore,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showBuyerMenu, setShowBuyerMenu] = useState(false);
@@ -70,6 +81,11 @@ export const Header: React.FC<HeaderProps> = ({
   const isBuyerSpace = activeView !== 'seller' && activeView !== 'admin';
   const isSellerSpace = activeView === 'seller';
   const isAdminSpace = activeView === 'admin';
+
+  const sellerStore =
+    currentUser?.role === 'seller'
+      ? stores.find((s) => s.id === currentUser.storeId || s.sellerId === currentUser.id) || stores[0]
+      : null;
 
   const handleBuyerSpaceClick = () => {
     if (currentUser?.role === 'customer') {
@@ -252,31 +268,184 @@ export const Header: React.FC<HeaderProps> = ({
     );
   };
 
-  return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
-      {/* Top Reassurance Bar: 1 slim bar for Cash on Delivery guarantee */}
-      <div className="bg-slate-900 text-slate-100 text-xs py-1.5 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="font-medium tracking-wide">Paiement 100% à la livraison au Bénin</span>
-            <span className="text-slate-400 hidden sm:inline">·</span>
-            <span className="text-slate-300 hidden sm:inline">Aucune carte ni paiement en ligne requis</span>
+  // DEDICATED SELLER PLATFORM HEADER: Zero access to buyer marketplace when in seller space
+  if (isSellerSpace) {
+    return (
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 w-full max-w-full overflow-hidden">
+        {/* Top Reassurance Bar for Seller */}
+        <div className="bg-slate-950 text-slate-200 text-xs py-1.5 px-3 sm:px-4 border-b border-slate-800 overflow-hidden">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+              <span className="font-bold text-amber-400 text-[11px] sm:text-xs truncate">Plateforme Vendeur</span>
+              <span className="text-slate-600 hidden sm:inline">·</span>
+              <span className="text-slate-300 hidden md:inline">Catalogue Illimité · 10 000+ Visiteurs Simultanés</span>
+            </div>
+            <div className="flex items-center gap-1.5 sm:gap-3 text-slate-300 text-[10px] sm:text-[11px] shrink-0">
+              <button
+                onClick={onOpenCustomerService}
+                className="hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Support vendeurs"
+              >
+                <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
+                <span className="hidden sm:inline">Support :</span>
+                <span className="font-bold text-amber-300">kgmservices229@gmail.com</span>
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-slate-300 text-[11px]">
+        </div>
+
+        {/* Main Navigation Row for Seller (NO competitor search, NO buyer cart) */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 overflow-hidden">
+          {/* Wordmark */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <div className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 leading-none">
+              <span className="text-amber-600">Bénin</span>Market
+            </div>
+            <span className="bg-slate-900 text-amber-400 border border-slate-700 font-extrabold text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-md sm:rounded-lg uppercase tracking-wider hidden xs:inline-block">
+              Espace Vendeur
+            </span>
+          </div>
+
+          {/* Center: Seller's Store Card (visible on sm+) */}
+          <div className="hidden sm:flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs min-w-0">
+            <img
+              src={mediaStorage.resolveUrl(sellerStore?.logo || '') || 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=100&q=80'}
+              alt=""
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg object-cover bg-white border border-slate-200 shrink-0"
+            />
+            <div className="text-left leading-tight min-w-0">
+              <div className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                <span className="truncate max-w-[120px] lg:max-w-[180px]">{sellerStore?.name || 'Ma Boutique'}</span>
+                <span className={`w-2 h-2 rounded-full shrink-0 ${sellerStore?.isOpen !== false ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              </div>
+              <span className="text-[10px] text-slate-500 truncate block">
+                {sellerStore?.city || 'Bénin'} · {sellerStore?.isOpen !== false ? 'Ouverte' : 'En Pause'}
+              </span>
+            </div>
+          </div>
+
+          {/* Right: Seller Platform Shortcuts & Logout */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {onPreviewOwnStore && (
+              <button
+                onClick={onPreviewOwnStore}
+                className="px-2.5 sm:px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer"
+                title="Prévisualiser votre boutique"
+              >
+                <Eye className="w-3.5 h-3.5 text-amber-600" />
+                <span className="hidden sm:inline">Aperçu vitrine</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => onSellerTabChange?.('settings')}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer ${
+                sellerActiveTab === 'settings'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
+              }`}
+              title="Configurer les paramètres de la boutique"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Paramètres</span>
+            </button>
+
+            <button
+              onClick={() => {
+                storageService.logout();
+                onNavigate('home');
+              }}
+              className="px-2.5 sm:px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer"
+              title="Fermer la session vendeur"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Quitter</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile App Bottom Navigation Bar for Seller (5 dedicated seller tools) */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 text-white border-t border-slate-800 px-2 py-1.5 flex items-center justify-around shadow-2xl safe-area-bottom">
+          <button
+            onClick={() => onSellerTabChange?.('overview')}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+              sellerActiveTab === 'overview' ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span>Tableau</span>
+          </button>
+
+          <button
+            onClick={() => onSellerTabChange?.('products')}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+              sellerActiveTab === 'products' ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Package className="w-5 h-5" />
+            <span>Produits</span>
+          </button>
+
+          <button
+            onClick={() => onSellerTabChange?.('orders')}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+              sellerActiveTab === 'orders' ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <StoreIcon className="w-5 h-5" />
+            <span>Commandes</span>
+          </button>
+
+          <button
+            onClick={() => onSellerTabChange?.('promotions')}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+              sellerActiveTab === 'promotions' ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Megaphone className="w-5 h-5" />
+            <span>Marketing</span>
+          </button>
+
+          <button
+            onClick={() => onSellerTabChange?.('settings')}
+            className={`flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+              sellerActiveTab === 'settings' ? 'text-amber-400' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Settings className="w-5 h-5" />
+            <span>Paramètres</span>
+          </button>
+        </nav>
+      </header>
+    );
+  }
+
+  return (
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 w-full max-w-full overflow-hidden">
+      {/* Top Reassurance Bar: 1 slim bar for Cash on Delivery guarantee */}
+      <div className="bg-slate-900 text-slate-100 text-xs py-1.5 px-3 sm:px-4 overflow-hidden">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <span className="font-medium tracking-wide truncate text-[10px] sm:text-xs">Paiement à la livraison au Bénin</span>
+            <span className="text-slate-400 hidden md:inline">·</span>
+            <span className="text-slate-300 hidden md:inline">0 FCFA en ligne · Serveurs 10 000+ connexions</span>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4 text-slate-300 text-[10px] sm:text-[11px] shrink-0">
             <button
               onClick={onOpenCustomerService}
-              className="hover:text-amber-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="hover:text-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
               title="Écrire au responsable du site"
             >
-              <Mail className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Service Client :</span>
-              <span className="font-bold text-amber-300">kgmservices229@gmail.com</span>
+              <Mail className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
+              <span className="hidden md:inline">Service Client :</span>
+              <span className="font-bold text-amber-300 text-[10px] sm:text-[11px]">kgmservices229@gmail.com</span>
             </button>
             <span className="text-slate-600 hidden sm:inline">|</span>
             <button
               onClick={onOpenTrack}
-              className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+              className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer hidden sm:flex"
             >
               <Package className="w-3.5 h-3.5 text-amber-400" />
               <span>Suivre mon colis</span>
@@ -286,18 +455,18 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Main Navigation Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4 md:gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-4 md:gap-6 overflow-hidden">
         {/* Zone 1: Brand Wordmark */}
         <button
           onClick={() => onNavigate('home')}
-          className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 text-left hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-2"
+          className="text-lg sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 text-left hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1.5"
         >
           <div>
             <span className="text-amber-600">Bénin</span>
             <span>Market</span>
           </div>
           {isAdminSpace && (
-            <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-2 py-0.5 rounded-full">
+            <span className="text-[9px] sm:text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded-full hidden xs:inline-block">
               Super Admin
             </span>
           )}
@@ -382,13 +551,13 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Zone 3: Distinct Espace Switcher & Actions */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Dual Space Portals: Espace Acheteur & Espace Vendeur */}
           {/* 1. ESPACE ACHETEUR PORTAL */}
           <div className="relative">
             <button
               onClick={handleBuyerSpaceClick}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+              className={`px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer border ${
                 isBuyerSpace
                   ? 'bg-amber-500/10 border-amber-500/40 text-amber-950 shadow-xs'
                   : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
@@ -480,7 +649,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative">
             <button
               onClick={handleSellerSpaceClick}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+              className={`px-2 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-bold transition-all flex items-center gap-1 sm:gap-1.5 cursor-pointer border ${
                 isSellerSpace
                   ? 'bg-amber-600 border-amber-600 text-white shadow-xs'
                   : 'bg-amber-500/10 border-amber-500/30 text-amber-900 hover:bg-amber-500/20'
@@ -569,14 +738,14 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
                 title="Mon Profil"
               >
-                <UserIcon className="w-3.5 h-3.5 text-slate-600" />
-                <span className="font-semibold text-slate-800 max-w-[80px] sm:max-w-[110px] truncate">
-                  {isPasteurKazotti ? '👑 Pasteur K.' : currentUser.firstName || currentUser.name.split(' ')[0]}
+                <UserIcon className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                <span className="font-semibold text-slate-800 max-w-[60px] sm:max-w-[110px] truncate">
+                  {isPasteurKazotti ? '👑 Pasteur' : currentUser.firstName || currentUser.name.split(' ')[0]}
                 </span>
-                <ChevronDown className="w-3 h-3 text-slate-500" />
+                <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
               </button>
 
               {showUserDropdown && (
@@ -673,12 +842,12 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Cart Trigger Button (Buyer mode) */}
           <button
             onClick={onOpenCart}
-            className="relative flex items-center justify-center p-2 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+            className="relative flex items-center justify-center p-1.5 sm:p-2 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
             aria-label="Voir le panier"
           >
-            <ShoppingBag className="w-5 h-5" />
+            <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
             {cartCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-amber-600 text-white text-[11px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm tabular-nums">
+              <span className="absolute -top-1 -right-1 bg-amber-600 text-white text-[10px] sm:text-[11px] font-bold w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center shadow-sm tabular-nums">
                 {cartCount}
               </span>
             )}
@@ -688,7 +857,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Search bar (Buyer mode) */}
       {isBuyerSpace && (
-        <div className="md:hidden px-4 pb-2.5">
+        <div className="md:hidden px-3 sm:px-4 pb-2.5">
           <div className="relative">
             <input
               type="text"

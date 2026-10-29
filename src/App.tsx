@@ -20,6 +20,9 @@ import { SellerRegistrationModal } from './components/seller/SellerRegistrationM
 import { FounderAccessModal } from './components/admin/FounderAccessModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { CustomerServiceModal } from './components/CustomerServiceModal';
+import { HighLoadMonitorModal } from './components/common/HighLoadMonitorModal';
+import { PWAInstallBanner } from './components/common/PWAInstallBanner';
+import { promptPWAInstall } from './hooks/usePWAInstall';
 
 import { storageService } from './services/storageService';
 import { Product, Store, Order, CartItem, User } from './types';
@@ -42,6 +45,8 @@ import {
   Check,
   Phone,
   Package,
+  Activity,
+  Zap,
 } from 'lucide-react';
 
 export default function App() {
@@ -51,8 +56,12 @@ export default function App() {
   const [stores, setStores] = useState<Store[]>(() => storageService.getStores());
   const [cart, setCart] = useState<CartItem[]>(() => storageService.getCart());
 
-  // Views & Routing
-  const [currentView, setCurrentView] = useState<'home' | 'categories' | 'stores' | 'boutique' | 'seller' | 'admin' | 'customer'>('home');
+  // Views & Routing - If seller is logged in, default directly to their dedicated seller platform
+  const [currentView, setCurrentView] = useState<'home' | 'categories' | 'stores' | 'boutique' | 'seller' | 'admin' | 'customer'>(
+    () => (currentUser?.role === 'seller' ? 'seller' : currentUser?.role === 'admin' ? 'admin' : 'home')
+  );
+  const [sellerActiveTab, setSellerActiveTab] = useState<'overview' | 'products' | 'orders' | 'promotions' | 'settings'>('overview');
+  const [isSellerBoundaryModalOpen, setIsSellerBoundaryModalOpen] = useState(false);
   const [activeStoreSlug, setActiveStoreSlug] = useState<string>('danxome-creations');
 
   // Filter & Search
@@ -84,6 +93,8 @@ export default function App() {
   } | null>(null);
   const [isCustomerServiceOpen, setIsCustomerServiceOpen] = useState(false);
   const [customerServiceOrderId, setCustomerServiceOrderId] = useState('');
+  const [isHighLoadModalOpen, setIsHighLoadModalOpen] = useState(false);
+  const [visibleCatalogLimit, setVisibleCatalogLimit] = useState(16);
 
   // Subscribe to storage changes and founder shortcuts
   useEffect(() => {
@@ -153,12 +164,19 @@ export default function App() {
   // Video items
   const videoProducts = products.filter((p) => p.isPublished && p.videoUrl);
 
-  // Navigation Handler
+  // Navigation Handler - Enforces strict boundary between seller platform and buyer space
   const handleNavigate = (view: 'home' | 'categories' | 'stores' | 'track' | 'seller' | 'admin' | 'customer', param?: string) => {
     if (view === 'track') {
       setIsTrackingOpen(true);
       return;
     }
+
+    // Strict boundary: sellers stay on their personal platform and cannot access buyer marketplace without disconnecting
+    if (currentUser?.role === 'seller' && ['home', 'categories', 'stores', 'customer'].includes(view)) {
+      setIsSellerBoundaryModalOpen(true);
+      return;
+    }
+
     if (param && view === 'stores') {
       setActiveStoreSlug(param);
       setCurrentView('boutique');
@@ -252,7 +270,10 @@ export default function App() {
   const activeStoreProducts = products.filter((p) => p.storeId === activeStore?.id);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-slate-50 text-slate-800">
+      {/* PWA Mobile App Install Bar for Android & iPhone */}
+      <PWAInstallBanner />
+
       {/* Top Header */}
       <Header
         currentUser={currentUser}
@@ -286,10 +307,19 @@ export default function App() {
             setCurrentView('categories');
           }
         }}
+        sellerActiveTab={sellerActiveTab}
+        onSellerTabChange={(tab) => {
+          setSellerActiveTab(tab);
+          setCurrentView('seller');
+        }}
+        onPreviewOwnStore={() => {
+          const s = stores.find((st) => st.id === currentUser?.storeId || st.sellerId === currentUser?.id) || stores[0];
+          handleOpenStore(s.slug);
+        }}
       />
 
       {/* Main View Switcher - pb-20 on mobile prevents bottom navigation overlap */}
-      <main className="flex-1 pb-20 md:pb-0">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden pb-20 md:pb-0">
         {/* VIEW 1: HOME */}
         {currentView === 'home' && (
           <div>
@@ -594,17 +624,28 @@ export default function App() {
             <section id="catalogue" className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                    Produits disponibles ({sortedProducts.length})
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+                    <span>Produits disponibles ({sortedProducts.length})</span>
+                    <span className="text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">
+                      ♾️ Catalogue Illimité
+                    </span>
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Sélectionnez vos articles et confirmez sans paiement en ligne
+                    Sélectionnez vos articles physiques et confirmez sans paiement en ligne
                   </p>
                 </div>
 
-                {/* Sort selector */}
+                {/* Sort selector & High load stats trigger */}
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-500">Trier par :</span>
+                  <button
+                    onClick={() => setIsHighLoadModalOpen(true)}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg font-bold transition cursor-pointer"
+                    title="Voir les métriques de trafic en direct"
+                  >
+                    <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                    <span>10 000+ En ligne (Fluide)</span>
+                  </button>
+                  <span className="text-slate-500">Trier :</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
@@ -625,20 +666,36 @@ export default function App() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {sortedProducts.map((p) => {
-                    const st = stores.find((s) => s.id === p.storeId);
-                    return (
-                      <ProductCard
-                        key={p.id}
-                        product={p}
-                        store={st}
-                        onSelect={setSelectedProduct}
-                        onQuickBuy={handleQuickBuy}
-                        onAddToCart={(prod) => handleAddToCart(prod, 1)}
-                      />
-                    );
-                  })}
+                <div className="space-y-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {sortedProducts.slice(0, visibleCatalogLimit).map((p) => {
+                      const st = stores.find((s) => s.id === p.storeId);
+                      return (
+                        <ProductCard
+                          key={p.id}
+                          product={p}
+                          store={st}
+                          onSelect={setSelectedProduct}
+                          onQuickBuy={handleQuickBuy}
+                          onAddToCart={(prod) => handleAddToCart(prod, 1)}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {visibleCatalogLimit < sortedProducts.length && (
+                    <div className="text-center pt-4">
+                      <button
+                        onClick={() => setVisibleCatalogLimit((prev) => prev + 16)}
+                        className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs rounded-xl transition shadow-xs cursor-pointer inline-flex items-center gap-2"
+                      >
+                        <span>Charger 16 articles supplémentaires</span>
+                        <span className="text-slate-400 font-normal">
+                          ({sortedProducts.length - visibleCatalogLimit} restants)
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </section>
@@ -790,17 +847,24 @@ export default function App() {
             onSelectProduct={setSelectedProduct}
             onQuickBuy={handleQuickBuy}
             onAddToCart={(prod) => handleAddToCart(prod, 1)}
-            onBackToMarketplace={() => setCurrentView('home')}
+            onBackToMarketplace={() => {
+              if (currentUser?.role === 'seller') {
+                setCurrentView('seller');
+              } else {
+                setCurrentView('home');
+              }
+            }}
           />
         )}
 
-        {/* VIEW 5: SELLER DASHBOARD */}
+        {/* VIEW 5: SELLER DASHBOARD (PLATEFORME PERSONNELLE VENDEUR) */}
         {currentView === 'seller' && (
           <SellerDashboard
             currentUser={currentUser || storageService.getUsers()[1]}
             onOpenStorePublic={handleOpenStore}
             onPrintOrderReceipt={(order) => setConfirmedOrder(order)}
-            onSwitchToBuyer={() => setCurrentView('home')}
+            activeTab={sellerActiveTab}
+            onTabChange={setSellerActiveTab}
           />
         )}
 
@@ -841,6 +905,7 @@ export default function App() {
           setCustomerServiceOrderId('');
           setIsCustomerServiceOpen(true);
         }}
+        onOpenPWAInstall={promptPWAInstall}
       />
 
       {/* MODAL: Product Detail */}
@@ -985,6 +1050,57 @@ export default function App() {
         }}
         currentUser={currentUser}
         initialOrderId={customerServiceOrderId}
+      />
+
+      {/* MODAL: SELLER BOUNDARY CONFIRMATION (Chaque vendeur est sur sa plateforme personnelle) */}
+      {isSellerBoundaryModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-slate-800 space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+              <StoreIcon className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Vous êtes sur votre Plateforme Vendeur
+              </h3>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                Votre compte vendeur est dédié à la gestion de votre boutique, de vos produits et du traitement de vos commandes clients. Chaque vendeur opère en toute confidentialité sur sa propre plateforme personnelle.
+              </p>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                Pour explorer les articles d'autres vendeurs et commander en tant que client avec paiement à la livraison, vous devez fermer votre session vendeur.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={() => setIsSellerBoundaryModalOpen(false)}
+                className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer text-center"
+              >
+                Rester sur mon espace vendeur
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  storageService.logout();
+                  setIsSellerBoundaryModalOpen(false);
+                  setCurrentView('home');
+                }}
+                className="py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs transition-colors cursor-pointer text-center border border-rose-200"
+              >
+                Se déconnecter pour acheter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* High Concurrency Monitor Modal (10,000+ simultaneous users) */}
+      <HighLoadMonitorModal
+        isOpen={isHighLoadModalOpen}
+        onClose={() => setIsHighLoadModalOpen(false)}
+        totalProductsCount={products.length}
       />
     </div>
   );

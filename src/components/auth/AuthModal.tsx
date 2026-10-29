@@ -185,13 +185,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Mode Selector Tabs (Alibaba pattern) */}
-        <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-100 text-xs font-semibold p-1">
+        <div className="grid grid-cols-3 border-b border-slate-200 bg-slate-100 text-[11px] sm:text-xs font-semibold p-1 gap-0.5">
           <button
             onClick={() => {
               setMode('login');
               setErrorMsg('');
             }}
-            className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer ${
+            className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer truncate ${
               mode === 'login'
                 ? 'bg-white text-slate-900 shadow-xs font-bold'
                 : 'text-slate-600 hover:text-slate-900'
@@ -205,14 +205,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setMode('register_buyer');
               setErrorMsg('');
             }}
-            className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1 ${
+            className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
               mode === 'register_buyer'
                 ? 'bg-white text-slate-900 shadow-xs font-bold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5 text-amber-600" />
-            <span>Créer Acheteur</span>
+            <ShoppingBag className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+            <span className="truncate">Créer Acheteur</span>
           </button>
 
           <button
@@ -220,14 +220,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setMode('register_seller');
               setErrorMsg('');
             }}
-            className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1 ${
+            className={`py-2 px-1 rounded-lg text-center transition-all cursor-pointer flex items-center justify-center gap-1 min-w-0 ${
               mode === 'register_seller'
                 ? 'bg-amber-600 text-white shadow-xs font-bold'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <StoreIcon className="w-3.5 h-3.5" />
-            <span>Créer ma boutique</span>
+            <StoreIcon className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Créer Boutique</span>
           </button>
         </div>
 

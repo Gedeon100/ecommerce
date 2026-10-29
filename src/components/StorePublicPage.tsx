@@ -38,6 +38,7 @@ export const StorePublicPage: React.FC<StorePublicPageProps> = ({
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'popular'>('featured');
+  const [visibleLimit, setVisibleLimit] = useState(12);
 
   // Categories present in this store
   const storeCategories = ['all', ...Array.from(new Set(products.map((p) => p.category)))];
@@ -60,6 +61,8 @@ export const StorePublicPage: React.FC<StorePublicPageProps> = ({
     if (sortBy === 'popular') return (b.salesCount || 0) - (a.salesCount || 0);
     return 0;
   });
+
+  const displayedProducts = sortedProducts.slice(0, visibleLimit);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-16">
@@ -242,17 +245,42 @@ export const StorePublicPage: React.FC<StorePublicPageProps> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sortedProducts.map((prod) => (
-                <ProductCard
-                  key={prod.id}
-                  product={prod}
-                  store={store}
-                  onSelect={onSelectProduct}
-                  onQuickBuy={onQuickBuy}
-                  onAddToCart={onAddToCart}
-                />
-              ))}
+            <div className="space-y-8">
+              <div className="text-xs text-slate-500 flex items-center justify-between">
+                <span>
+                  Affichage de <strong>{displayedProducts.length}</strong> sur <strong>{sortedProducts.length}</strong> articles disponibles
+                </span>
+                <span className="text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  ♾️ Catalogue Illimité
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {displayedProducts.map((prod) => (
+                  <ProductCard
+                    key={prod.id}
+                    product={prod}
+                    store={store}
+                    onSelect={onSelectProduct}
+                    onQuickBuy={onQuickBuy}
+                    onAddToCart={onAddToCart}
+                  />
+                ))}
+              </div>
+
+              {visibleLimit < sortedProducts.length && (
+                <div className="text-center pt-4">
+                  <button
+                    onClick={() => setVisibleLimit((prev) => prev + 12)}
+                    className="px-6 py-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 font-bold text-xs rounded-xl transition shadow-xs cursor-pointer inline-flex items-center gap-2"
+                  >
+                    <span>Charger 12 articles supplémentaires</span>
+                    <span className="text-slate-400 font-normal">
+                      ({sortedProducts.length - visibleLimit} restants)
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

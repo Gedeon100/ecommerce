@@ -7,6 +7,7 @@ interface FooterProps {
   onNavigateHome: () => void;
   onOpenFounderModal?: () => void;
   onOpenCustomerService?: () => void;
+  onOpenPWAInstall?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -15,6 +16,7 @@ export const Footer: React.FC<FooterProps> = ({
   onNavigateHome,
   onOpenFounderModal,
   onOpenCustomerService,
+  onOpenPWAInstall,
 }) => {
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 text-xs">
@@ -108,6 +110,16 @@ export const Footer: React.FC<FooterProps> = ({
             Acheter en confiance
           </h5>
           <ul className="space-y-2 text-slate-400">
+            {onOpenPWAInstall && (
+              <li>
+                <button
+                  onClick={onOpenPWAInstall}
+                  className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>📲 Installer l'App Mobile (Android & iPhone)</span>
+                </button>
+              </li>
+            )}
             <li>
               <button onClick={onOpenTrack} className="hover:text-amber-400 transition-colors cursor-pointer">
                 Suivre ou annuler ma commande
@@ -176,8 +188,8 @@ export const Footer: React.FC<FooterProps> = ({
       </div>
 
       {/* Copyright with Discreet Founder Lock */}
-      <div className="border-t border-slate-800 py-4 px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 text-[11px]">
-        <p>
+      <div className="border-t border-slate-800 py-4 px-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 text-[11px] text-center sm:text-left overflow-hidden">
+        <p className="break-words max-w-full">
           © 2026 BéninMarket. Plateforme e-commerce multivendeurs dédiée au marché béninois et ouest-africain. Paiement à la livraison exclusif.
         </p>
         {onOpenFounderModal && (

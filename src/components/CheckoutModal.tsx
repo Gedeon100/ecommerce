@@ -216,14 +216,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[94vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Commander en ligne</h2>
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">Commander en ligne</h2>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="inline-block bg-emerald-600 text-white font-bold text-[11px] px-2 py-0.5 rounded">
+              <span className="inline-block bg-emerald-600 text-white font-bold text-[10px] sm:text-[11px] px-2 py-0.5 rounded">
                 PAIEMENT À LA LIVRAISON
               </span>
-              <span className="text-xs text-slate-500">· 0 FCFA débité maintenant</span>
+              <span className="text-[11px] sm:text-xs text-slate-500">· 0 FCFA maintenant</span>
             </div>
           </div>
           <button
@@ -236,7 +236,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         </div>
 
         {/* Content Form */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
           {currentUser && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs text-blue-950">
               <div className="flex items-center gap-2">

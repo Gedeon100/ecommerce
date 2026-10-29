@@ -371,10 +371,17 @@ class StorageService {
     );
   }
 
-  // --- PRODUCTS ---
+  // --- PRODUCTS (UNLIMITED CAPACITY ARCHITECTURE) ---
+  private cachedProducts: Product[] | null = null;
+
   public getProducts(): Product[] {
+    if (this.cachedProducts) {
+      return this.cachedProducts;
+    }
     const data = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-    return data ? JSON.parse(data) : INITIAL_PRODUCTS;
+    const prods: Product[] = data ? JSON.parse(data) : INITIAL_PRODUCTS;
+    this.cachedProducts = prods;
+    return prods;
   }
 
   public getProductsByStore(storeId: string): Product[] {
@@ -386,20 +393,128 @@ class StorageService {
   }
 
   public saveProduct(product: Product): void {
-    const products = this.getProducts();
+    const products = [...this.getProducts()];
     const index = products.findIndex((p) => p.id === product.id);
     if (index >= 0) {
       products[index] = product;
     } else {
       products.unshift(product);
     }
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    this.cachedProducts = products;
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    } catch (quotaError) {
+      console.warn('[BéninMarket Storage] Quota localStorage atteint avec un catalogue massif. Sauvegarde en mémoire vive / cache actif.', quotaError);
+    }
     this.notify();
+  }
+
+  /**
+   * Sauvegarde un lot complet de produits en une seule passe pour éviter les re-rendus saccadés.
+   */
+  public saveProductsBatch(newProducts: Product[]): void {
+    const current = [...this.getProducts()];
+    const merged = [...newProducts, ...current.filter((c) => !newProducts.some((np) => np.id === c.id))];
+    this.cachedProducts = merged;
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(merged));
+    } catch (quotaError) {
+      console.warn('[BéninMarket Storage] Sauvegarde de lot massif dans le cache haute performance.', quotaError);
+    }
+    this.notify();
+  }
+
+  /**
+   * Duplication instantanée d'un article pour expansion rapide du catalogue vendeur.
+   */
+  public duplicateProduct(productId: string): Product | null {
+    const product = this.getProductById(productId);
+    if (!product) return null;
+
+    const cloned: Product = {
+      ...product,
+      id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: `${product.name} (Copie)`,
+      slug: `${product.slug}-copie-${Date.now().toString().slice(-4)}`,
+      createdAt: new Date().toISOString(),
+      viewsCount: 0,
+      salesCount: 0,
+    };
+
+    this.saveProduct(cloned);
+    return cloned;
+  }
+
+  /**
+   * Génère un lot de démonstration pour tester la capacité illimitée (10, 25, 50 articles au choix).
+   */
+  public generateUnlimitedDemoBatch(storeId: string, count = 10): Product[] {
+    const store = this.getStoreById(storeId) || this.getStores()[0];
+    const categories = [
+      'Mode & Vêtements',
+      'Artisanat & Décoration',
+      'Beauté & Soins Naturels',
+      'Électronique & High-Tech',
+      'Chaussures & Maroquinerie',
+      'Épicerie & Saveurs Locales',
+    ];
+
+    const templates = [
+      { name: 'Robe Brodée Wax Akwaba', cat: 'Mode & Vêtements', price: 18500, img: 'https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Beurre de Karité Pur du Nord Bénin (500g)', cat: 'Beauté & Soins Naturels', price: 4500, img: 'https://images.unsplash.com/photo-1608248597359-59754f9a08e6?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Sandales Cuir Artisanal Dassa', cat: 'Chaussures & Maroquinerie', price: 12000, img: 'https://images.unsplash.com/photo-1562273138-f46be4ebdf33?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Écouteurs Sans Fil Pro Bass TWS', cat: 'Électronique & High-Tech', price: 14000, img: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Tableau Toile Peinte Danxomè', cat: 'Artisanat & Décoration', price: 25000, img: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Montre Quartz Bracelet Cuir Sauvage', cat: 'Électronique & High-Tech', price: 19500, img: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Chemise Homme Lin & Broderie Royale', cat: 'Mode & Vêtements', price: 22000, img: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Savon Noir Africain & Miel Pur (Lot de 3)', cat: 'Beauté & Soins Naturels', price: 3500, img: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Sac à Main Cuir Wax & Finitions Dorées', cat: 'Chaussures & Maroquinerie', price: 16500, img: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=600&q=80' },
+      { name: 'Miel Sauvage d’Atacora (Pot 1kg)', cat: 'Épicerie & Saveurs Locales', price: 6000, img: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80' },
+    ];
+
+    const generated: Product[] = [];
+    for (let i = 0; i < count; i++) {
+      const tmpl = templates[i % templates.length];
+      const seq = Math.floor(i / templates.length) + 1;
+      const name = seq > 1 ? `${tmpl.name} Série #${seq}` : tmpl.name;
+      const isPromo = i % 3 === 0;
+
+      generated.push({
+        id: `prod-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
+        storeId: store.id,
+        name,
+        slug: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString().slice(-4)}`,
+        category: tmpl.cat,
+        shortDescription: `Article officiel haute qualité sélectionné par ${store.name}. Paiement à la livraison au Bénin.`,
+        description: `Produit authentique de la boutique ${store.name}. Expédition rapide sur Cotonou, Calavi, Porto-Novo et tout le Bénin. Vérification du colis avant paiement en espèces.`,
+        detailedDescription: `Spécifications détaillées :\n- Origine : Bénin & Afrique de l'Ouest\n- Garantie : Contrôle qualité à l'emballage\n- Mode de règlement : 100% Cash on Delivery (0 FCFA prélevé en ligne).`,
+        price: tmpl.price,
+        promoPrice: isPromo ? Math.round(tmpl.price * 0.85) : undefined,
+        isPromoActive: isPromo,
+        stock: 15 + (i * 2),
+        images: [tmpl.img],
+        isPublished: true,
+        featured: i < 3,
+        rating: 5.0,
+        reviewCount: Math.floor(Math.random() * 12) + 1,
+        salesCount: Math.floor(Math.random() * 25),
+        viewsCount: Math.floor(Math.random() * 150) + 10,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    this.saveProductsBatch(generated);
+    return generated;
   }
 
   public deleteProduct(id: string): void {
     const products = this.getProducts().filter((p) => p.id !== id);
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    this.cachedProducts = products;
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    } catch (e) {
+      // ignore
+    }
     this.notify();
   }
 
