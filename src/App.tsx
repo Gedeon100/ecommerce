@@ -23,6 +23,9 @@ import { CustomerServiceModal } from './components/CustomerServiceModal';
 import { HighLoadMonitorModal } from './components/common/HighLoadMonitorModal';
 import { PWAInstallBanner } from './components/common/PWAInstallBanner';
 import { promptPWAInstall } from './hooks/usePWAInstall';
+import { VisitorAIAssistant } from './components/common/VisitorAIAssistant';
+import { BonDeCommandeModal } from './components/common/BonDeCommandeModal';
+import { PaymentReceiptModal } from './components/common/PaymentReceiptModal';
 
 import { storageService } from './services/storageService';
 import { Product, Store, Order, CartItem, User } from './types';
@@ -60,7 +63,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'home' | 'categories' | 'stores' | 'boutique' | 'seller' | 'admin' | 'customer'>(
     () => (currentUser?.role === 'seller' ? 'seller' : currentUser?.role === 'admin' ? 'admin' : 'home')
   );
-  const [sellerActiveTab, setSellerActiveTab] = useState<'overview' | 'products' | 'orders' | 'promotions' | 'settings'>('overview');
+  const [sellerActiveTab, setSellerActiveTab] = useState<'overview' | 'products' | 'orders' | 'abandoned_carts' | 'promotions' | 'settings'>('overview');
   const [isSellerBoundaryModalOpen, setIsSellerBoundaryModalOpen] = useState(false);
   const [activeStoreSlug, setActiveStoreSlug] = useState<string>('danxome-creations');
 
@@ -78,6 +81,8 @@ export default function App() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState<CartItem[]>([]);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [bonDeCommandeOrder, setBonDeCommandeOrder] = useState<Order | null>(null);
+  const [paymentReceiptOrder, setPaymentReceiptOrder] = useState<Order | null>(null);
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingInitialCode, setTrackingInitialCode] = useState('');
   const [isSellerRegOpen, setIsSellerRegOpen] = useState(false);
@@ -171,10 +176,16 @@ export default function App() {
       return;
     }
 
-    // Strict boundary: sellers stay on their personal platform and cannot access buyer marketplace without disconnecting
-    if (currentUser?.role === 'seller' && ['home', 'categories', 'stores', 'customer'].includes(view)) {
-      setIsSellerBoundaryModalOpen(true);
-      return;
+    if (view === 'seller' && currentUser?.role !== 'seller') {
+      const users = storageService.getUsers();
+      const seller = users.find((u) => u.role === 'seller');
+      if (seller) {
+        storageService.setCurrentUser(seller);
+      } else {
+        setAuthModalMode('register_seller');
+        setIsAuthModalOpen(true);
+        return;
+      }
     }
 
     if (param && view === 'stores') {
@@ -949,6 +960,7 @@ export default function App() {
         order={confirmedOrder}
         onClose={() => setConfirmedOrder(null)}
         onTrackOrder={handleOpenTrackingWithCode}
+        onOpenBonDeCommande={(o) => setBonDeCommandeOrder(o)}
       />
 
       {/* MODAL: Order Tracking */}
@@ -1101,6 +1113,30 @@ export default function App() {
         isOpen={isHighLoadModalOpen}
         onClose={() => setIsHighLoadModalOpen(false)}
         totalProductsCount={products.length}
+      />
+
+      {/* Official Bon De Commande Modal */}
+      <BonDeCommandeModal
+        order={bonDeCommandeOrder}
+        isOpen={!!bonDeCommandeOrder}
+        onClose={() => setBonDeCommandeOrder(null)}
+      />
+
+      {/* Official Payment Receipt Modal */}
+      <PaymentReceiptModal
+        order={paymentReceiptOrder}
+        isOpen={!!paymentReceiptOrder}
+        onClose={() => setPaymentReceiptOrder(null)}
+      />
+
+      {/* 24/7 Global AI Assistant for all Platform Visitors */}
+      <VisitorAIAssistant
+        onOpenTrack={() => setIsTrackingOpen(true)}
+        onOpenSellerOnboarding={() => {
+          setAuthModalMode('register_seller');
+          setIsAuthModalOpen(true);
+        }}
+        onExploreMarketplace={() => setCurrentView('home')}
       />
     </div>
   );

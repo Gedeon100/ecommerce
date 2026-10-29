@@ -14,7 +14,12 @@ import {
   ShieldCheck,
   Ban,
   RotateCcw,
+  FileText,
+  Receipt,
+  Mail,
 } from 'lucide-react';
+import { BonDeCommandeModal } from './common/BonDeCommandeModal';
+import { PaymentReceiptModal } from './common/PaymentReceiptModal';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -41,6 +46,11 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
   });
   const [errorMsg, setErrorMsg] = useState('');
   const [cancellationSuccess, setCancellationSuccess] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReasonInput, setCancelReasonInput] = useState('Changement d’avis');
+  const [cancelError, setCancelError] = useState('');
+  const [showBonModal, setShowBonModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,22 +77,17 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     setSearchedOrder(found);
   };
 
-  const handleCancelOrder = () => {
+  const confirmCancel = () => {
     if (!searchedOrder) return;
-    if (searchedOrder.status === 'EN_COURS_LIVRAISON' || searchedOrder.status === 'LIVREE_ENCAISSEE') {
-      alert('La commande est déjà expédiée ou livrée et ne peut plus être annulée directement.');
-      return;
-    }
+    setCancelError('');
 
-    const reason = prompt('Motif de l’annulation (ex: Changement d’avis, Erreur d’article, Délai trop long) :', 'Changement d’avis');
-    if (reason !== null) {
-      const res = storageService.cancelOrderByCustomer(searchedOrder.id, reason);
-      if (res.success) {
-        setSearchedOrder({ ...searchedOrder, status: 'ANNULEE' });
-        setCancellationSuccess(true);
-      } else {
-        alert(res.message);
-      }
+    const res = storageService.cancelOrderByCustomer(searchedOrder.id, cancelReasonInput);
+    if (res.success) {
+      setSearchedOrder({ ...searchedOrder, status: 'ANNULEE' });
+      setCancellationSuccess(true);
+      setShowCancelDialog(false);
+    } else {
+      setCancelError(res.message);
     }
   };
 
@@ -330,15 +335,43 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
                 )}
               </div>
 
+              {/* Official Documents (Bon de Commande & Reçu de Paiement) */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                  Documents officiels de la commande
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBonModal(true)}
+                    className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Bon de commande officiel</span>
+                  </button>
+
+                  {searchedOrder.status === 'LIVREE_ENCAISSEE' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowReceiptModal(true)}
+                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Receipt className="w-3.5 h-3.5 text-emerald-200" />
+                      <span>Reçu de paiement acquitté</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Cancellation button if not shipped yet */}
               {['NOUVELLE', 'CONFIRMEE', 'EN_PREPARATION'].includes(searchedOrder.status) && (
-                <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                   <span className="text-xs text-slate-500">
                     Un imprévu ? Vous pouvez annuler votre commande sans frais avant son expédition.
                   </span>
                   <button
-                    onClick={handleCancelOrder}
-                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                    onClick={() => setShowCancelDialog(true)}
+                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold rounded-lg transition-colors cursor-pointer shrink-0"
                   >
                     Annuler la commande
                   </button>
@@ -348,6 +381,74 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
           )}
         </div>
       </div>
+
+      {/* Inline Cancel Dialog */}
+      {showCancelDialog && searchedOrder && (
+        <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 text-slate-800 space-y-4">
+            <div className="flex items-center gap-2 text-rose-600">
+              <Ban className="w-5 h-5" />
+              <h4 className="font-bold text-sm">Confirmer l'annulation</h4>
+            </div>
+            <p className="text-xs text-slate-600">
+              Souhaitez-vous vraiment annuler votre commande <strong>{searchedOrder.trackingCode}</strong> ? Aucun livreur ne sera envoyé.
+            </p>
+            <div>
+              <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                Motif d'annulation :
+              </label>
+              <select
+                value={cancelReasonInput}
+                onChange={(e) => setCancelReasonInput(e.target.value)}
+                className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white"
+              >
+                <option value="Changement d’avis">Changement d’avis</option>
+                <option value="Délai de livraison trop long">Délai de livraison trop long</option>
+                <option value="Erreur lors de la sélection des articles">Erreur lors de la sélection des articles</option>
+                <option value="Indisponibilité géographique">Indisponibilité géographique</option>
+                <option value="Autre raison personnelle">Autre raison personnelle</option>
+              </select>
+            </div>
+            {cancelError && (
+              <p className="text-xs text-rose-600 font-semibold">{cancelError}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowCancelDialog(false)}
+                className="flex-1 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg cursor-pointer"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancel}
+                className="flex-1 py-2 text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer"
+              >
+                Oui, annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Official Bon De Commande Modal */}
+      {searchedOrder && (
+        <BonDeCommandeModal
+          order={searchedOrder}
+          isOpen={showBonModal}
+          onClose={() => setShowBonModal(false)}
+        />
+      )}
+
+      {/* Official Payment Receipt Modal */}
+      {searchedOrder && (
+        <PaymentReceiptModal
+          order={searchedOrder}
+          isOpen={showReceiptModal}
+          onClose={() => setShowReceiptModal(false)}
+        />
+      )}
     </div>
   );
 };

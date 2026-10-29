@@ -200,10 +200,52 @@ export interface Order {
   deliveryTotal: number;
   grandTotal: number;
   cashCollectedAmount?: number;
+  cashEncaissedBy?: string;
   driverName?: string;
   driverPhone?: string;
+  bonDeCommandeSentAt?: string;
+  bonDeCommandeEmail?: string;
+  receiptNumber?: string;
+  receiptSentAt?: string;
+  receiptSentEmail?: string;
+  receiptSentWhatsapp?: string;
+  deliveredAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AbandonedCart {
+  id: string;
+  storeId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerCity?: string;
+  items: CartItem[];
+  totalAmount: number;
+  createdAt: string;
+  lastActivityAt: string;
+  status: 'abandoned' | 'recovered' | 'relanced';
+  recoveryAttemptsCount: number;
+  lastRecoverySentAt?: string;
+  lastRecoveryChannel?: 'whatsapp' | 'email';
+  lastGeneratedRecoveryMessage?: string;
+}
+
+export interface AISalesCopyResponse {
+  salesTitle: string;
+  hook: string;
+  persuasiveDescription: string;
+  bulletPoints: string[];
+  codGuaranteeArgument: string;
+  faq: { question: string; answer: string }[];
+}
+
+export interface AICartRecoveryResponse {
+  whatsappMessage: string;
+  emailSubject: string;
+  emailBody: string;
+  suggestedDiscountPromoCode?: string;
 }
 
 export interface ProductReview {

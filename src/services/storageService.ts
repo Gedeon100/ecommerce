@@ -10,6 +10,7 @@ import {
   OrderStatus,
   SupportTicket,
   StoreCustomer,
+  AbandonedCart,
 } from '../types';
 import {
   INITIAL_USERS,
@@ -21,6 +22,86 @@ import {
 } from '../data/initialData';
 import { generateOrderId } from '../utils/formatters';
 
+export const INITIAL_ABANDONED_CARTS: AbandonedCart[] = [
+  {
+    id: 'cart-ab-1',
+    storeId: 'danxome-creations',
+    customerName: 'Gaston Koudjo',
+    customerPhone: '+229 97 12 34 56',
+    customerEmail: 'gaston.koudjo@gmail.com',
+    customerCity: 'Cotonou (Cadjehoun)',
+    items: [
+      {
+        id: 'c-item-1',
+        productId: 'prod-wax-blazer',
+        storeId: 'danxome-creations',
+        productName: 'Veste Blazer Wax Imprimé Royal',
+        productImage: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=600&q=80',
+        price: 28500,
+        normalPrice: 35000,
+        quantity: 1,
+        selectedVariants: { 'Taille': 'XL', 'Couleur': 'Indigo & Or' },
+      },
+    ],
+    totalAmount: 28500,
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    lastActivityAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    status: 'abandoned',
+    recoveryAttemptsCount: 0,
+  },
+  {
+    id: 'cart-ab-2',
+    storeId: 'danxome-creations',
+    customerName: 'Nadège Houessou',
+    customerPhone: '+229 95 88 44 22',
+    customerEmail: 'nadege.houessou@yahoo.fr',
+    customerCity: 'Abomey-Calavi (Tankpè)',
+    items: [
+      {
+        id: 'c-item-2',
+        productId: 'prod-wax-tote',
+        storeId: 'danxome-creations',
+        productName: 'Sac Cabas Cuir & Tissage Kanvô',
+        productImage: 'https://images.unsplash.com/photo-1590874103328-eac38a683ce7?auto=format&fit=crop&w=600&q=80',
+        price: 18000,
+        normalPrice: 22000,
+        quantity: 1,
+        selectedVariants: { 'Finition': 'Marron Havane' },
+      },
+    ],
+    totalAmount: 18000,
+    createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+    lastActivityAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+    status: 'abandoned',
+    recoveryAttemptsCount: 0,
+  },
+  {
+    id: 'cart-ab-3',
+    storeId: 'adjovi-bio',
+    customerName: 'Akim Dossou',
+    customerPhone: '+229 66 11 22 33',
+    customerEmail: 'akim.dossou@hotmail.com',
+    customerCity: 'Porto-Novo',
+    items: [
+      {
+        id: 'c-item-3',
+        productId: 'prod-shea-butter',
+        storeId: 'adjovi-bio',
+        productName: 'Beurre de Karité Brut Pur & Bio 500g',
+        productImage: 'https://images.unsplash.com/photo-1608248597359-32204c3e8964?auto=format&fit=crop&w=600&q=80',
+        price: 4500,
+        normalPrice: 5500,
+        quantity: 2,
+      },
+    ],
+    totalAmount: 9000,
+    createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    lastActivityAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    status: 'abandoned',
+    recoveryAttemptsCount: 0,
+  },
+];
+
 const STORAGE_KEYS = {
   USERS: 'beninmarket_users',
   CURRENT_USER: 'beninmarket_current_user',
@@ -31,6 +112,7 @@ const STORAGE_KEYS = {
   CART: 'beninmarket_cart',
   SETTINGS: 'beninmarket_settings',
   TICKETS: 'beninmarket_support_tickets',
+  ABANDONED_CARTS: 'beninmarket_abandoned_carts',
   INITIALIZED: 'beninmarket_initialized_v2',
 };
 
@@ -558,6 +640,97 @@ class StorageService {
     this.notify();
   }
 
+  // --- ABANDONED CARTS (PANIER ABANDONNÉ & RELANCE IA) ---
+  public getAbandonedCarts(): AbandonedCart[] {
+    const data = localStorage.getItem(STORAGE_KEYS.ABANDONED_CARTS);
+    return data ? JSON.parse(data) : INITIAL_ABANDONED_CARTS;
+  }
+
+  public getAbandonedCartsByStore(storeId: string): AbandonedCart[] {
+    return this.getAbandonedCarts().filter((c) => c.storeId === storeId);
+  }
+
+  public recordAbandonedCart(cartData: {
+    storeId: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+    customerCity?: string;
+    items: CartItem[];
+    totalAmount: number;
+  }): AbandonedCart {
+    const carts = this.getAbandonedCarts();
+    const existingIndex = carts.findIndex(
+      (c) =>
+        c.storeId === cartData.storeId &&
+        ((cartData.customerPhone && c.customerPhone === cartData.customerPhone) ||
+          (cartData.customerEmail && c.customerEmail === cartData.customerEmail))
+    );
+
+    const now = new Date().toISOString();
+    let recordedCart: AbandonedCart;
+
+    if (existingIndex >= 0) {
+      carts[existingIndex].items = cartData.items;
+      carts[existingIndex].totalAmount = cartData.totalAmount;
+      carts[existingIndex].lastActivityAt = now;
+      if (cartData.customerName) carts[existingIndex].customerName = cartData.customerName;
+      if (cartData.customerCity) carts[existingIndex].customerCity = cartData.customerCity;
+      recordedCart = carts[existingIndex];
+    } else {
+      recordedCart = {
+        id: `cart-ab-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        storeId: cartData.storeId,
+        customerName: cartData.customerName || 'Visiteur BéninMarket',
+        customerPhone: cartData.customerPhone || '',
+        customerEmail: cartData.customerEmail || '',
+        customerCity: cartData.customerCity || 'Cotonou',
+        items: cartData.items,
+        totalAmount: cartData.totalAmount,
+        createdAt: now,
+        lastActivityAt: now,
+        status: 'abandoned',
+        recoveryAttemptsCount: 0,
+      };
+      carts.unshift(recordedCart);
+    }
+
+    localStorage.setItem(STORAGE_KEYS.ABANDONED_CARTS, JSON.stringify(carts));
+    this.notify();
+    return recordedCart;
+  }
+
+  public recordRecoveryAttempt(cartId: string, channel: 'whatsapp' | 'email', message?: string): void {
+    const carts = this.getAbandonedCarts();
+    const cart = carts.find((c) => c.id === cartId);
+    if (!cart) return;
+
+    cart.recoveryAttemptsCount = (cart.recoveryAttemptsCount || 0) + 1;
+    cart.lastRecoverySentAt = new Date().toISOString();
+    cart.lastRecoveryChannel = channel;
+    cart.status = 'relanced';
+    if (message) cart.lastGeneratedRecoveryMessage = message;
+
+    localStorage.setItem(STORAGE_KEYS.ABANDONED_CARTS, JSON.stringify(carts));
+    this.notify();
+  }
+
+  public markCartRecovered(cartId: string): void {
+    const carts = this.getAbandonedCarts();
+    const cart = carts.find((c) => c.id === cartId);
+    if (!cart) return;
+
+    cart.status = 'recovered';
+    localStorage.setItem(STORAGE_KEYS.ABANDONED_CARTS, JSON.stringify(carts));
+    this.notify();
+  }
+
+  public deleteAbandonedCart(cartId: string): void {
+    const carts = this.getAbandonedCarts().filter((c) => c.id !== cartId);
+    localStorage.setItem(STORAGE_KEYS.ABANDONED_CARTS, JSON.stringify(carts));
+    this.notify();
+  }
+
   // --- ORDERS ---
   public getOrders(): Order[] {
     const data = localStorage.getItem(STORAGE_KEYS.ORDERS);
@@ -657,6 +830,7 @@ class StorageService {
     const fullCustomerName = orderPayload.customerName ||
       `${orderPayload.customerFirstName} ${orderPayload.customerLastName}`.trim();
 
+    const now = new Date().toISOString();
     const newOrder: Order = {
       id: orderId,
       trackingCode: orderId,
@@ -676,8 +850,11 @@ class StorageService {
       productsTotal: totalProductsAmount,
       deliveryTotal: totalDeliveryFee,
       grandTotal: totalProductsAmount + totalDeliveryFee,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      bonDeCommandeSentAt: now,
+      bonDeCommandeEmail: orderPayload.customerEmail,
+      receiptNumber: `REC-${orderId}`,
+      createdAt: now,
+      updatedAt: now,
     };
 
     const orders = this.getOrders();
@@ -695,9 +872,100 @@ class StorageService {
     });
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
 
+    // Mark or remove any matching abandoned cart for this customer
+    try {
+      const abandonedCarts = this.getAbandonedCarts();
+      const updatedCarts = abandonedCarts.filter(
+        (c) =>
+          c.customerEmail !== orderPayload.customerEmail &&
+          c.customerPhone !== orderPayload.customerPhone
+      );
+      localStorage.setItem(STORAGE_KEYS.ABANDONED_CARTS, JSON.stringify(updatedCarts));
+    } catch (e) {
+      // ignore
+    }
+
+    // Trigger async simulated email dispatch
+    if (typeof window !== 'undefined') {
+      fetch('/api/notifications/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'bon_de_commande',
+          orderId: newOrder.id,
+          recipientEmail: newOrder.customerEmail,
+          recipientPhone: newOrder.customerPhone,
+          recipientName: newOrder.customerName,
+          amount: newOrder.grandTotal,
+        }),
+      }).catch(() => {});
+    }
+
     this.clearCart();
     this.notify();
     return newOrder;
+  }
+
+  public confirmDeliveryAndPayment(
+    orderId: string,
+    subOrderId?: string,
+    cashAmount?: number,
+    sellerName?: string
+  ): { success: boolean; order?: Order; message: string } {
+    const orders = this.getOrders();
+    const order = orders.find((o) => o.id === orderId || o.trackingCode === orderId);
+    if (!order) return { success: false, message: 'Commande introuvable.' };
+
+    const now = new Date().toISOString();
+    order.status = 'LIVREE_ENCAISSEE';
+    order.deliveredAt = now;
+    order.receiptNumber = order.receiptNumber || `REC-${order.id}`;
+    order.receiptSentAt = now;
+    order.receiptSentEmail = order.customerEmail;
+    order.receiptSentWhatsapp = order.customerPhone;
+    order.cashEncaissedBy = sellerName || 'Vendeur Agréé BéninMarket';
+
+    if (subOrderId) {
+      const sub = order.subOrders.find((s) => s.id === subOrderId);
+      if (sub) {
+        sub.status = 'LIVREE_ENCAISSEE';
+        sub.deliveredAt = now;
+        sub.cashCollected = cashAmount !== undefined ? cashAmount : sub.total;
+      }
+    } else {
+      order.subOrders.forEach((sub) => {
+        sub.status = 'LIVREE_ENCAISSEE';
+        sub.deliveredAt = now;
+        sub.cashCollected = sub.total;
+      });
+      order.cashCollectedAmount = cashAmount !== undefined ? cashAmount : order.grandTotal;
+    }
+
+    order.updatedAt = now;
+    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+
+    // Async notification dispatch
+    if (typeof window !== 'undefined') {
+      fetch('/api/notifications/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'recu_paiement',
+          orderId: order.id,
+          recipientEmail: order.customerEmail,
+          recipientPhone: order.customerPhone,
+          recipientName: order.customerName,
+          amount: order.grandTotal,
+        }),
+      }).catch(() => {});
+    }
+
+    this.notify();
+    return {
+      success: true,
+      order,
+      message: `La livraison a été confirmée avec succès ! Le reçu de paiement n° ${order.receiptNumber} a été transmis à ${order.customerEmail} et préparé pour WhatsApp.`,
+    };
   }
 
   public updateOrderStatus(

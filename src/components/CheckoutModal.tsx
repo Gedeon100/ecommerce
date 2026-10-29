@@ -169,12 +169,37 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   };
 
+  const handleDismiss = () => {
+    // If the customer entered contact details or is logged in, register an abandoned cart so AI recovery can engage
+    const name = (customerFirstName || customerLastName)
+      ? `${customerFirstName} ${customerLastName}`.trim()
+      : (currentUser?.name || 'Visiteur BéninMarket');
+    const phone = customerPhone.trim().length > 6 ? customerPhone.trim() : (currentUser?.whatsapp || currentUser?.phone || '');
+    const email = customerEmail.trim() || currentUser?.email || '';
+
+    if (items.length > 0 && (phone || email || currentUser)) {
+      Object.entries(itemsByStore).forEach(([storeId, storeItems]) => {
+        const storeSubtotal = storeItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
+        storageService.recordAbandonedCart({
+          storeId,
+          customerName: name,
+          customerPhone: phone,
+          customerEmail: email,
+          customerCity: selectedCity,
+          items: storeItems,
+          totalAmount: storeSubtotal,
+        });
+      });
+    }
+    onClose();
+  };
+
   if (!currentUser) {
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
         <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden p-6 text-center">
           <button
-            onClick={onClose}
+            onClick={handleDismiss}
             className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -192,7 +217,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <button
               type="button"
               onClick={() => {
-                onClose();
+                handleDismiss();
                 if (onRequireAuth) onRequireAuth();
               }}
               className="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition shadow-sm cursor-pointer"
@@ -201,7 +226,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleDismiss}
               className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition cursor-pointer"
             >
               Continuer d'explorer les boutiques
@@ -227,7 +252,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleDismiss}
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
             aria-label="Fermer"
           >

@@ -45,8 +45,8 @@ interface HeaderProps {
   onSelectProduct?: (product: Product) => void;
   onSelectStore?: (storeSlug: string) => void;
   onSelectCity?: (city: string) => void;
-  sellerActiveTab?: 'overview' | 'products' | 'orders' | 'promotions' | 'settings';
-  onSellerTabChange?: (tab: 'overview' | 'products' | 'orders' | 'promotions' | 'settings') => void;
+  sellerActiveTab?: 'overview' | 'products' | 'orders' | 'abandoned_carts' | 'promotions' | 'settings';
+  onSellerTabChange?: (tab: 'overview' | 'products' | 'orders' | 'abandoned_carts' | 'promotions' | 'settings') => void;
   onPreviewOwnStore?: () => void;
 }
 
@@ -88,21 +88,29 @@ export const Header: React.FC<HeaderProps> = ({
       : null;
 
   const handleBuyerSpaceClick = () => {
-    if (currentUser?.role === 'customer') {
-      onNavigate('customer');
-      return;
-    }
-    setShowBuyerMenu(!showBuyerMenu);
     setShowSellerMenu(false);
+    if (!isBuyerSpace) {
+      onNavigate(currentUser?.role === 'customer' ? 'customer' : 'home');
+    } else {
+      setShowBuyerMenu((prev) => !prev);
+    }
   };
 
   const handleSellerSpaceClick = () => {
+    setShowBuyerMenu(false);
     if (currentUser?.role === 'seller') {
       onNavigate('seller');
-      return;
+    } else {
+      // Switch directly to seller workspace or open seller registration
+      const users = storageService.getUsers();
+      const existingSeller = users.find((u) => u.role === 'seller');
+      if (existingSeller) {
+        storageService.setCurrentUser(existingSeller);
+        onNavigate('seller');
+      } else {
+        onOpenAuthModal?.('register_seller');
+      }
     }
-    setShowSellerMenu(!showSellerMenu);
-    setShowBuyerMenu(false);
   };
 
   const cleanQ = searchQuery.trim().toLowerCase();

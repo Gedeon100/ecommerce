@@ -53,10 +53,18 @@ import {
   Activity,
   Layers,
   Sparkles,
+  Receipt,
+  QrCode,
+  FileCheck2,
 } from 'lucide-react';
 import { HighLoadMonitorModal } from '../common/HighLoadMonitorModal';
+import { AISalesCopyModal } from './AISalesCopyModal';
+import { AICartRecoveryModal } from './AICartRecoveryModal';
+import { BonDeCommandeModal } from '../common/BonDeCommandeModal';
+import { PaymentReceiptModal } from '../common/PaymentReceiptModal';
+import { AbandonedCart } from '../../types';
 
-export type SellerTab = 'overview' | 'products' | 'orders' | 'promotions' | 'settings';
+export type SellerTab = 'overview' | 'products' | 'orders' | 'promotions' | 'settings' | 'abandoned_carts';
 
 interface SellerDashboardProps {
   currentUser: User;
@@ -125,6 +133,29 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [isBatchGenerating, setIsBatchGenerating] = useState(false);
   const PRODUCTS_PER_PAGE = 12;
 
+  // Abandoned Carts & AI Recovery
+  const storeAbandonedCarts = storageService.getAbandonedCartsByStore(sellerStore.id);
+  const [selectedRecoveryCart, setSelectedRecoveryCart] = useState<AbandonedCart | null>(null);
+  const [isCartRecoveryModalOpen, setIsCartRecoveryModalOpen] = useState(false);
+
+  // AI Sales Copy Generator Modal
+  const [isSalesCopyModalOpen, setIsSalesCopyModalOpen] = useState(false);
+  const [salesCopyTargetProduct, setSalesCopyTargetProduct] = useState<{
+    name?: string;
+    category?: string;
+    price?: number;
+    benefits?: string;
+  } | null>(null);
+
+  // Delivery & Payment Confirmation Modal
+  const [confirmDeliveryTarget, setConfirmDeliveryTarget] = useState<{ order: Order; sub: any } | null>(null);
+  const [confirmDeliveryCashAmount, setConfirmDeliveryCashAmount] = useState<number>(0);
+  const [justDeliveredSuccessInfo, setJustDeliveredSuccessInfo] = useState<{ order: Order; receiptNumber: string } | null>(null);
+
+  // Document View Modals
+  const [viewBonDeCommandeOrder, setViewBonDeCommandeOrder] = useState<Order | null>(null);
+  const [viewPaymentReceiptOrder, setViewPaymentReceiptOrder] = useState<Order | null>(null);
+
   // Filtered and paginated products
   const filteredProducts = allProducts.filter((p) => {
     const matchesSearch = !productSearch.trim() || 
@@ -180,6 +211,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [prodWeight, setProdWeight] = useState<number>(0.5);
   const [prodDimensions, setProdDimensions] = useState('30 x 20 x 5 cm');
   const [prodDetailedDesc, setProdDetailedDesc] = useState('');
+  const [prodFeatures, setProdFeatures] = useState<string[]>([]);
   const [prodTestimonials, setProdTestimonials] = useState<ProductTestimonial[]>([]);
   const [productModalTab, setProductModalTab] = useState<'general' | 'description' | 'testimonials'>('general');
   const [newTestimonialAuthor, setNewTestimonialAuthor] = useState('');
@@ -512,20 +544,39 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     }
   };
 
+  const handleOpenConfirmDeliveryModal = (order: Order, sub: any) => {
+    setConfirmDeliveryTarget({ order, sub });
+    setConfirmDeliveryCashAmount(sub.cashCollected || sub.total);
+  };
+
+  const handleExecuteConfirmDelivery = () => {
+    if (!confirmDeliveryTarget) return;
+    const { order, sub } = confirmDeliveryTarget;
+    const res = storageService.confirmDeliveryAndPayment(
+      order.id,
+      sub.id,
+      confirmDeliveryCashAmount,
+      sellerStore.name
+    );
+    if (res.success && res.order) {
+      setJustDeliveredSuccessInfo({
+        order: res.order,
+        receiptNumber: res.order.receiptNumber || `REC-${res.order.id}`,
+      });
+    }
+    setConfirmDeliveryTarget(null);
+  };
+
   const handleUpdateOrderStatus = (orderId: string, subId: string, newStatus: OrderStatus) => {
-    let collected: number | undefined = undefined;
     if (newStatus === 'LIVREE_ENCAISSEE') {
       const order = allOrders.find((o) => o.id === orderId);
       const sub = order?.subOrders.find((s) => s.id === subId);
-      const amount = prompt(
-        `Montant en espèces réellement encaissé par le livreur (en FCFA) :`,
-        sub ? sub.total.toString() : ''
-      );
-      if (amount === null) return;
-      collected = Number(amount) || (sub ? sub.total : 0);
+      if (order && sub) {
+        handleOpenConfirmDeliveryModal(order, sub);
+        return;
+      }
     }
-
-    storageService.updateOrderStatus(orderId, newStatus, subId, collected);
+    storageService.updateOrderStatus(orderId, newStatus, subId);
   };
 
   return (
@@ -626,6 +677,22 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             {pendingCount > 0 && (
               <span className="bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded-full text-[10px] font-bold">
                 {pendingCount}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('abandoned_carts')}
+            className={`py-3 transition-colors border-b-2 flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeTab === 'abandoned_carts'
+                ? 'border-amber-500 text-amber-400 font-bold'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <span>Paniers Abandonnés (IA)</span>
+            {storeAbandonedCarts.length > 0 && (
+              <span className="bg-rose-500 text-white px-1.5 py-0.2 rounded-full text-[10px] font-bold">
+                {storeAbandonedCarts.length}
               </span>
             )}
           </button>
@@ -969,15 +1036,26 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    setSalesCopyTargetProduct(null);
+                    setIsSalesCopyModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Générer des titres, textes persuasifs et arguments de vente avec l'IA"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                  <span>Rédacteur IA Vendeur</span>
+                </button>
                 <button
                   onClick={() => handleGenerateBatch(10)}
                   disabled={isBatchGenerating}
                   className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
                   title="Ajouter 10 articles d'exemple pour tester la montée en charge du catalogue"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{isBatchGenerating ? 'Ajout en cours...' : '+10 Articles (Test)'}</span>
+                  <Plus className="w-3.5 h-3.5 text-slate-600" />
+                  <span>{isBatchGenerating ? 'Ajout...' : '+10 Articles'}</span>
                 </button>
                 <button
                   onClick={handleOpenAddProduct}
@@ -1375,10 +1453,10 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                       ))}
                     </div>
 
-                    {/* Status Management Bar */}
+                    {/* Status Management & Delivery Actions Bar */}
                     <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="font-semibold text-slate-700">Changer le statut :</span>
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-semibold text-slate-700">Statut :</span>
                         <select
                           value={sub.status}
                           onChange={(e) => handleUpdateOrderStatus(sub.orderId, sub.id, e.target.value as OrderStatus)}
@@ -1393,18 +1471,224 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                           <option value="ANNULEE">Annulée</option>
                           <option value="LIVRAISON_ECHOUEE">Livraison échouée (client absent)</option>
                         </select>
+
+                        {sub.status !== 'LIVREE_ENCAISSEE' && parent && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenConfirmDeliveryModal(parent, sub)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                            title="Valider la livraison et envoyer automatiquement le reçu de paiement par Email et WhatsApp"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Confirmer la livraison effectuée</span>
+                          </button>
+                        )}
                       </div>
 
-                      {sub.status === 'LIVREE_ENCAISSEE' && (
-                        <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Paiement en espèces encaissé : {formatFCFA(sub.cashCollected || sub.total)}</span>
-                        </span>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {parent && (
+                          <button
+                            type="button"
+                            onClick={() => setViewBonDeCommandeOrder(parent)}
+                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Consulter le Bon de Commande officiel"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Bon de Commande</span>
+                          </button>
+                        )}
+
+                        {sub.status === 'LIVREE_ENCAISSEE' && parent && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setViewPaymentReceiptOrder(parent)}
+                              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Consulter le reçu de paiement acquitté avec tampon officiel"
+                            >
+                              <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Reçu de Paiement</span>
+                            </button>
+
+                            {parent.customerPhone && (
+                              <a
+                                href={`https://wa.me/${parent.customerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                                  `Bonjour ${parent.customerName || ''},\nVotre commande ${parent.id} a bien été livrée et encaissée !\nVoici votre reçu de paiement acquitté N° ${parent.receiptNumber || `REC-${parent.id}`} d'un montant de ${formatFCFA(sub.cashCollected || sub.total)}.\nMerci pour votre confiance sur BéninMarket !`
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Envoyer le reçu directement au client sur WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                <span>Reçu WhatsApp</span>
+                              </a>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: ABANDONED CARTS & AI RECOVERY */}
+        {activeTab === 'abandoned_carts' && (
+          <div className="space-y-6">
+            {/* Header banner */}
+            <div className="bg-gradient-to-r from-amber-600 to-amber-800 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-200 block mb-1">
+                  MODULE D'INTELLIGENCE ARTIFICIELLE
+                </span>
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-300" />
+                  <span>Relance Intelligente des Paniers Abandonnés</span>
+                </h2>
+                <p className="text-xs text-amber-100 mt-1 max-w-2xl leading-relaxed">
+                  L'IA analyse le panier de chaque visiteur non finalisé et rédige des messages WhatsApp et Email ultra-persuasifs et chaleureux pour convaincre le client de commander avec paiement à la livraison (Cash on Delivery).
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="bg-white/10 backdrop-blur-xs px-4 py-2.5 rounded-xl border border-white/20 text-center">
+                  <div className="text-2xl font-black">{storeAbandonedCarts.length}</div>
+                  <div className="text-[10px] text-amber-200 uppercase font-semibold">Paniers en attente</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-xs px-4 py-2.5 rounded-xl border border-white/20 text-center">
+                  <div className="text-2xl font-black">
+                    {formatFCFA(storeAbandonedCarts.reduce((sum, c) => sum + c.totalAmount, 0))}
+                  </div>
+                  <div className="text-[10px] text-amber-200 uppercase font-semibold">Montant récupérable</div>
+                </div>
+              </div>
+            </div>
+
+            {/* List of abandoned carts */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Paniers laissés en cours dans votre boutique ({storeAbandonedCarts.length})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Cliquez sur « Relancer avec l'IA » pour générer un message personnalisé et l'envoyer directement en 1 clic sur WhatsApp.
+                  </p>
+                </div>
+              </div>
+
+              {storeAbandonedCarts.length === 0 ? (
+                <div className="p-10 text-center text-slate-500 text-xs space-y-2">
+                  <ShoppingCart className="w-10 h-10 text-slate-300 mx-auto" />
+                  <p className="font-semibold text-slate-700">Aucun panier abandonné actuellement dans votre boutique !</p>
+                  <p className="text-slate-400">
+                    Dès qu'un client ajoute vos articles au panier sans aller au bout de la commande, il apparaîtra ici avec l'assistant de relance IA.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {storeAbandonedCarts.map((cart) => {
+                    const cleanPhone = (cart.customerPhone || '').replace(/[^\d+]/g, '');
+                    return (
+                      <div
+                        key={cart.id}
+                        className="p-4 bg-slate-50/80 hover:bg-slate-50 border border-slate-200 rounded-2xl space-y-3 transition-colors text-xs flex flex-col justify-between"
+                      >
+                        <div className="space-y-2.5">
+                          {/* Client Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                <span>{cart.customerName}</span>
+                                {cart.status === 'relanced' && (
+                                  <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded border border-amber-300">
+                                    Relancé ({cart.recoveryAttemptsCount}x)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-slate-500 text-[11px] mt-0.5 flex flex-wrap gap-x-3">
+                                {cart.customerPhone && (
+                                  <span className="font-semibold text-slate-700">📱 {cart.customerPhone}</span>
+                                )}
+                                {cart.customerCity && <span>📍 {cart.customerCity}</span>}
+                              </div>
+                            </div>
+                            <span className="font-black text-amber-700 bg-amber-100/80 border border-amber-200 px-2 py-0.5 rounded-lg text-xs tabular-nums">
+                              {formatFCFA(cart.totalAmount)}
+                            </span>
+                          </div>
+
+                          {/* Items in cart */}
+                          <div className="bg-white p-2.5 rounded-xl border border-slate-200 space-y-1.5">
+                            <span className="font-bold text-slate-700 text-[11px] block">
+                              Articles réservés dans le panier :
+                            </span>
+                            {cart.items.map((it, idx) => (
+                              <div key={idx} className="flex items-center justify-between gap-2 text-slate-700 text-[11px]">
+                                <span className="truncate">{it.quantity}x {it.productName}</span>
+                                <span className="font-semibold tabular-nums shrink-0">{formatFCFA(it.price * it.quantity)}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Date and Activity */}
+                          <div className="text-[10px] text-slate-400 flex items-center justify-between">
+                            <span>Abandonné le {new Date(cart.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                            {cart.lastRecoverySentAt && (
+                              <span className="text-emerald-700 font-semibold">
+                                Dernière relance : {new Date(cart.lastRecoverySentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedRecoveryCart(cart);
+                              setIsCartRecoveryModalOpen(true);
+                            }}
+                            className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                            <span>Relancer avec l'IA</span>
+                          </button>
+
+                          <div className="flex items-center gap-1.5">
+                            {cleanPhone && (
+                              <a
+                                href={`https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(
+                                  `Bonjour ${cart.customerName} ! C'est ${sellerStore.name} sur BéninMarket. Vos articles (${cart.items.map((i) => i.productName).join(', ')}) sont réservés. Vous réglez 100% à la livraison chez vous. Souhaitez-vous que nous expédions votre commande ?`
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Relance rapide directe sur WhatsApp"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                <span>WhatsApp</span>
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => storageService.deleteAbandonedCart(cart.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Retirer ce panier de la liste"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2296,7 +2580,25 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                   {/* Name & Category */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Nom du produit *</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-semibold text-slate-700">Nom du produit *</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSalesCopyTargetProduct({
+                              name: prodName,
+                              category: prodCategory,
+                              price: prodPrice,
+                              benefits: prodFeatures.join(', '),
+                            });
+                            setIsSalesCopyModalOpen(true);
+                          }}
+                          className="text-amber-700 hover:text-amber-800 font-bold flex items-center gap-1 text-[11px] cursor-pointer"
+                        >
+                          <Sparkles className="w-3 h-3 text-amber-600" />
+                          <span>✨ Rédiger avec l'IA</span>
+                        </button>
+                      </div>
                       <input
                         type="text"
                         required
@@ -2584,11 +2886,33 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
               {/* TAB 2: RICH PRODUCT DESCRIPTION PAGE */}
               {productModalTab === 'description' && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-950">
-                    <strong className="block font-bold mb-0.5 text-xs">Page de présentation détaillée du produit</strong>
-                    <p className="text-[11px] text-amber-900 leading-relaxed">
-                      Créez une véritable fiche descriptive : expliquez l'origine, les matériaux, les avantages pour l'acheteur, et les consignes d'utilisation ou d'entretien.
-                    </p>
+                  {/* AI Copywriting Assistant Banner */}
+                  <div className="p-3 bg-gradient-to-r from-amber-500/15 via-amber-600/10 to-amber-500/15 border border-amber-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                    <div className="space-y-0.5">
+                      <strong className="block font-bold text-xs text-amber-950 flex items-center gap-1.5">
+                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>Vous ne savez pas quoi écrire ? Laissez faire l'IA !</span>
+                      </strong>
+                      <p className="text-[11px] text-amber-900 leading-relaxed">
+                        L'IA génère en quelques secondes un titre accrocheur, une description persuasive et des arguments Cash on Delivery.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSalesCopyTargetProduct({
+                          name: prodName,
+                          category: prodCategory,
+                          price: prodPrice,
+                          benefits: prodFeatures.join(', '),
+                        });
+                        setIsSalesCopyModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer transition-all self-start sm:self-center"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                      <span>Rédiger avec l'IA</span>
+                    </button>
                   </div>
 
                   <div>
@@ -2804,6 +3128,180 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
         isOpen={isHighLoadModalOpen}
         onClose={() => setIsHighLoadModalOpen(false)}
         totalProductsCount={allProducts.length}
+      />
+
+      {/* AI Sales Copy Modal */}
+      <AISalesCopyModal
+        isOpen={isSalesCopyModalOpen}
+        onClose={() => setIsSalesCopyModalOpen(false)}
+        initialProductName={salesCopyTargetProduct?.name || ''}
+        initialCategory={salesCopyTargetProduct?.category || 'Mode & Vêtements'}
+        initialPrice={salesCopyTargetProduct?.price}
+        initialBenefits={salesCopyTargetProduct?.benefits || ''}
+        storeName={sellerStore.name}
+        onApplyCopy={(copy) => {
+          if (copy.title) setProdName(copy.title);
+          if (copy.description) {
+            setProdDesc(copy.description);
+            setProdDetailedDesc(copy.description);
+          }
+          if (copy.features && copy.features.length > 0) {
+            setProdFeatures(copy.features);
+          }
+          setProdShortDesc(copy.title.slice(0, 90));
+          setProductModalOpen(true);
+          setProductModalTab('description');
+        }}
+      />
+
+      {/* AI Cart Recovery Modal */}
+      <AICartRecoveryModal
+        isOpen={isCartRecoveryModalOpen}
+        onClose={() => {
+          setIsCartRecoveryModalOpen(false);
+          setSelectedRecoveryCart(null);
+        }}
+        cart={selectedRecoveryCart}
+        storeName={sellerStore.name}
+        onRecoverySent={(cartId, channel, msg) => {
+          storageService.recordRecoveryAttempt(cartId, channel, msg);
+        }}
+      />
+
+      {/* Confirm Delivery & Cash Modal */}
+      {confirmDeliveryTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-bold text-slate-900 text-sm">
+                  Confirmer la livraison & Encaissement COD
+                </h3>
+              </div>
+              <button
+                onClick={() => setConfirmDeliveryTarget(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                <div className="font-bold text-slate-900 text-sm">{confirmDeliveryTarget.order.customerName}</div>
+                <div className="text-slate-600">📱 {confirmDeliveryTarget.order.customerPhone}</div>
+                <div className="text-slate-600">✉️ {confirmDeliveryTarget.order.customerEmail}</div>
+                <div className="text-slate-600">📍 {confirmDeliveryTarget.order.neighborhood}, {confirmDeliveryTarget.order.city}</div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Montant en espèces réellement encaissé (FCFA) :
+                </label>
+                <input
+                  type="number"
+                  value={confirmDeliveryCashAmount}
+                  onChange={(e) => setConfirmDeliveryCashAmount(Number(e.target.value))}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-900 space-y-1">
+                <strong className="block font-bold">Automatisation immédiate :</strong>
+                <p>
+                  En validant, la commande passe au statut <strong>Livrée & Encaissée</strong>. Le client recevra automatiquement son <strong>Reçu de Paiement officiel acquitté</strong> par Email et une notification préparée pour WhatsApp.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setConfirmDeliveryTarget(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteConfirmDelivery}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Valider l'encaissement et émettre le Reçu</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Success Popup */}
+      {justDeliveredSuccessInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4 text-center">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+
+            <div>
+              <h3 className="font-bold text-slate-900 text-base">Livraison Validée & Encaissée !</h3>
+              <p className="text-xs text-slate-600 mt-1">
+                Le reçu officiel <strong>N° {justDeliveredSuccessInfo.receiptNumber}</strong> a été transmis à l'adresse <strong>{justDeliveredSuccessInfo.order.customerEmail}</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              {justDeliveredSuccessInfo.order.customerPhone && (
+                <a
+                  href={`https://wa.me/${justDeliveredSuccessInfo.order.customerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                    `Bonjour ${justDeliveredSuccessInfo.order.customerName} !\nVotre commande ${justDeliveredSuccessInfo.order.id} a été livrée avec succès.\nVoici votre reçu de paiement acquitté N° ${justDeliveredSuccessInfo.receiptNumber} d'un montant de ${formatFCFA(justDeliveredSuccessInfo.order.grandTotal)} payé en Cash on Delivery.\nMerci pour vos achats sur BéninMarket !`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Envoyer la confirmation sur WhatsApp au client</span>
+                </a>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setViewPaymentReceiptOrder(justDeliveredSuccessInfo.order);
+                  setJustDeliveredSuccessInfo(null);
+                }}
+                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+              >
+                <Receipt className="w-4 h-4 text-emerald-600" />
+                <span>Voir le Reçu de Paiement officiel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setJustDeliveredSuccessInfo(null)}
+                className="w-full py-2 px-4 text-xs font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bon de Commande Modal */}
+      <BonDeCommandeModal
+        order={viewBonDeCommandeOrder}
+        isOpen={!!viewBonDeCommandeOrder}
+        onClose={() => setViewBonDeCommandeOrder(null)}
+      />
+
+      {/* Payment Receipt Modal */}
+      <PaymentReceiptModal
+        order={viewPaymentReceiptOrder}
+        isOpen={!!viewPaymentReceiptOrder}
+        onClose={() => setViewPaymentReceiptOrder(null)}
       />
     </div>
   );
