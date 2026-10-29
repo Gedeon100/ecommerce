@@ -12,9 +12,15 @@ import {
   Mail,
   LogOut,
   HelpCircle,
+  MapPin,
+  ChevronRight,
+  Home,
+  X,
 } from 'lucide-react';
-import { User, Store } from '../types';
+import { User, Store, Product } from '../types';
 import { storageService } from '../services/storageService';
+import { mediaStorage } from '../services/mediaStorage';
+import { formatFCFA } from '../utils/formatters';
 
 interface HeaderProps {
   currentUser: User | null;
@@ -28,6 +34,12 @@ interface HeaderProps {
   onOpenFounderModal?: () => void;
   onOpenCustomerService?: () => void;
   onOpenAuthModal?: (mode?: 'login' | 'register_buyer' | 'register_seller') => void;
+  products?: Product[];
+  stores?: Store[];
+  selectedCity?: string;
+  onSelectProduct?: (product: Product) => void;
+  onSelectStore?: (storeSlug: string) => void;
+  onSelectCity?: (city: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,10 +54,17 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenFounderModal,
   onOpenCustomerService,
   onOpenAuthModal,
+  products = [],
+  stores = [],
+  selectedCity,
+  onSelectProduct,
+  onSelectStore,
+  onSelectCity,
 }) => {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showBuyerMenu, setShowBuyerMenu] = useState(false);
   const [showSellerMenu, setShowSellerMenu] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const isPasteurKazotti = currentUser?.email === 'pasteurkazotti@gmail.com' || currentUser?.role === 'admin';
   const isBuyerSpace = activeView !== 'seller' && activeView !== 'admin';
@@ -68,6 +87,169 @@ export const Header: React.FC<HeaderProps> = ({
     }
     setShowSellerMenu(!showSellerMenu);
     setShowBuyerMenu(false);
+  };
+
+  const cleanQ = searchQuery.trim().toLowerCase();
+
+  const matchingProducts = cleanQ
+    ? products.filter((p) => {
+        const store = stores.find((s) => s.id === p.storeId);
+        return (
+          p.name.toLowerCase().includes(cleanQ) ||
+          p.category.toLowerCase().includes(cleanQ) ||
+          p.description.toLowerCase().includes(cleanQ) ||
+          (store && (store.name.toLowerCase().includes(cleanQ) || store.city.toLowerCase().includes(cleanQ)))
+        );
+      }).slice(0, 5)
+    : [];
+
+  const matchingStores = cleanQ
+    ? stores.filter(
+        (s) =>
+          s.name.toLowerCase().includes(cleanQ) ||
+          s.category.toLowerCase().includes(cleanQ) ||
+          s.city.toLowerCase().includes(cleanQ)
+      ).slice(0, 3)
+    : [];
+
+  const BENIN_CITIES = ['Cotonou', 'Abomey-Calavi', 'Porto-Novo', 'Parakou', 'Ouidah', 'Bohicon', 'Natitingou'];
+  const matchingCities = cleanQ
+    ? BENIN_CITIES.filter((c) => c.toLowerCase().includes(cleanQ))
+    : [];
+
+  const renderSearchDropdown = () => {
+    if (!searchFocused || !cleanQ) return null;
+    const hasAnyResults = matchingCities.length > 0 || matchingStores.length > 0 || matchingProducts.length > 0;
+
+    return (
+      <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 max-h-96 overflow-y-auto text-xs">
+        {/* Lieux / Villes correspondants */}
+        {matchingCities.length > 0 && (
+          <div className="p-3 bg-amber-50/70">
+            <span className="text-[10px] font-bold uppercase text-amber-900 tracking-wider flex items-center gap-1 mb-2">
+              <MapPin className="w-3.5 h-3.5 text-amber-600" />
+              <span>Villes & Lieux où trouver des produits ({matchingCities.length})</span>
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {matchingCities.map((city) => (
+                <button
+                  key={city}
+                  type="button"
+                  onMouseDown={() => {
+                    if (onSelectCity) onSelectCity(city);
+                    setSearchFocused(false);
+                  }}
+                  className="px-2.5 py-1 bg-white hover:bg-amber-100 text-amber-950 border border-amber-200 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                >
+                  <MapPin className="w-3 h-3 text-amber-600" />
+                  <span>{city}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Boutiques correspondantes */}
+        {matchingStores.length > 0 && (
+          <div className="p-3">
+            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1 mb-2">
+              <StoreIcon className="w-3.5 h-3.5 text-slate-500" />
+              <span>Boutiques & Vendeurs ({matchingStores.length})</span>
+            </span>
+            <div className="space-y-1.5">
+              {matchingStores.map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onMouseDown={() => {
+                    if (onSelectStore) onSelectStore(st.slug);
+                    setSearchFocused(false);
+                  }}
+                  className="w-full text-left p-2 hover:bg-slate-50 rounded-xl flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <img
+                      src={mediaStorage.resolveUrl(st.logo)}
+                      alt=""
+                      className="w-8 h-8 rounded-lg object-cover border border-slate-200 bg-slate-100 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 truncate">{st.name}</div>
+                      <div className="text-[10px] text-slate-500 flex items-center gap-1">
+                        <MapPin className="w-2.5 h-2.5 text-slate-400" />
+                        <span>{st.city}</span>
+                        <span>·</span>
+                        <span>{st.category}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Produits correspondants */}
+        {matchingProducts.length > 0 ? (
+          <div className="p-3">
+            <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider flex items-center gap-1 mb-2">
+              <Package className="w-3.5 h-3.5 text-slate-500" />
+              <span>Articles & Produits ({matchingProducts.length})</span>
+            </span>
+            <div className="space-y-1.5">
+              {matchingProducts.map((p) => {
+                const store = stores.find((s) => s.id === p.storeId);
+                const activePrice = p.isPromoActive && p.promoPrice ? p.promoPrice : p.price;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onMouseDown={() => {
+                      if (onSelectProduct) onSelectProduct(p);
+                      setSearchFocused(false);
+                    }}
+                    className="w-full text-left p-2 hover:bg-slate-50 rounded-xl flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img
+                        src={mediaStorage.resolveUrl(p.images[0])}
+                        alt=""
+                        className="w-9 h-9 rounded-lg object-cover border border-slate-200 bg-slate-100 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 truncate">{p.name}</div>
+                        <div className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                          <span className="font-semibold text-emerald-700">{formatFCFA(activePrice)}</span>
+                          <span>·</span>
+                          <span className="truncate">{store?.name}</span>
+                          <span>·</span>
+                          <span className="text-slate-400 flex items-center gap-0.5">
+                            <MapPin className="w-2.5 h-2.5" />
+                            {store?.city}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${p.stock > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                        {p.stock > 0 ? `${p.stock} en stock` : 'Rupture'}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          !hasAnyResults && (
+            <div className="p-4 text-center text-slate-400 text-xs">
+              Aucun produit, boutique ou lieu trouvé pour « {searchQuery} ».
+            </div>
+          )
+        )}
+      </div>
+    );
   };
 
   return (
@@ -175,15 +357,27 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Search Input (only when browsing) */}
         {isBuyerSpace && (
-          <div className="flex-1 max-w-xs sm:max-w-sm hidden md:block relative">
+          <div className="flex-1 max-w-sm hidden md:block relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Rechercher un article, catégorie, ville..."
-              className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
+              placeholder="Rechercher article, boutique, lieu (ex: Cotonou)..."
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all font-medium text-slate-900"
             />
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {renderSearchDropdown()}
           </div>
         )}
 
@@ -500,13 +694,91 @@ export const Header: React.FC<HeaderProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Rechercher un article, vendeur, ville..."
-              className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 250)}
+              placeholder="Rechercher article, boutique, lieu..."
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all font-medium text-slate-900"
             />
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {renderSearchDropdown()}
           </div>
         </div>
       )}
+
+      {/* Mobile App Bottom Navigation Bar (Android & iPhone Native App Feel) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-2 py-1.5 flex items-center justify-around shadow-2xl safe-area-bottom">
+        <button
+          onClick={() => onNavigate('home')}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+            activeView === 'home' ? 'text-amber-700' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Home className="w-5 h-5" />
+          <span>Accueil</span>
+        </button>
+
+        <button
+          onClick={() => onNavigate('categories')}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+            activeView === 'categories' ? 'text-amber-700' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Search className="w-5 h-5" />
+          <span>Explorer</span>
+        </button>
+
+        <button
+          onClick={() => onNavigate('stores')}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+            activeView === 'stores' || activeView === 'boutique' ? 'text-amber-700' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <StoreIcon className="w-5 h-5" />
+          <span>Boutiques</span>
+        </button>
+
+        <button
+          onClick={onOpenCart}
+          className="relative flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg text-[10px] font-bold text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+        >
+          <div className="relative">
+            <ShoppingBag className="w-5 h-5" />
+            {cartCount > 0 && (
+              <span className="absolute -top-1 -right-2 bg-amber-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                {cartCount}
+              </span>
+            )}
+          </div>
+          <span>Panier</span>
+        </button>
+
+        <button
+          onClick={() => {
+            if (currentUser?.role === 'seller') {
+              onNavigate('seller');
+            } else if (currentUser?.role === 'customer') {
+              onNavigate('customer');
+            } else {
+              setShowBuyerMenu(true);
+            }
+          }}
+          className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer ${
+            activeView === 'seller' || activeView === 'customer' ? 'text-amber-700' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <UserIcon className="w-5 h-5" />
+          <span>{currentUser ? (currentUser.role === 'seller' ? 'Vendeur' : 'Mon Compte') : 'Compte'}</span>
+        </button>
+      </nav>
     </header>
   );
 };

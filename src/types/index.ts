@@ -55,7 +55,22 @@ export interface Store {
   rating: number;
   reviewCount: number;
   deliveryZones: DeliveryZone[];
+  viewsCount?: number;
+  cartAbandonCount?: number;
+  cartAbandonTotal?: number;
   createdAt: string;
+}
+
+export interface StoreCustomer {
+  name: string;
+  phone: string;
+  whatsapp: string;
+  email?: string;
+  city: string;
+  ordersCount: number;
+  totalSpent: number;
+  lastOrderDate: string;
+  lastOrderedItems: string[];
 }
 
 export interface ProductVariant {
@@ -98,6 +113,8 @@ export interface Product {
   deliveryInfo?: string;
   isPublished: boolean;
   salesCount: number;
+  viewsCount?: number;
+  cartAbandonCount?: number;
   rating: number;
   reviewCount: number;
   testimonials?: ProductTestimonial[]; // Témoignages clients sur le produit

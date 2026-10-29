@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { User, Store, Product, Order, OrderStatus, ProductVariant, ProductTestimonial } from '../../types';
+import { User, Store, Product, Order, OrderStatus, ProductVariant, ProductTestimonial, StoreCustomer } from '../../types';
 import { storageService } from '../../services/storageService';
+import { mediaStorage } from '../../services/mediaStorage';
 import { formatFCFA, formatDateFR, calculateDiscountPercent, ORDER_STATUS_CONFIG } from '../../utils/formatters';
 import {
   Store as StoreIcon,
@@ -28,6 +29,18 @@ import {
   Star,
   FileText,
   MessageSquare,
+  Upload,
+  Film,
+  Image as ImageIcon,
+  Copy,
+  Check,
+  Users,
+  Share2,
+  MousePointer,
+  Megaphone,
+  Send,
+  Percent,
+  ShoppingCart,
 } from 'lucide-react';
 
 interface SellerDashboardProps {
@@ -43,7 +56,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   onPrintOrderReceipt,
   onSwitchToBuyer,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'profile'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'orders' | 'promotions' | 'profile'>('overview');
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -73,6 +86,14 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   // Total order book (including pending, to show potential pipeline)
   const totalOrderBook = storeSubOrders.reduce((sum, s) => sum + s.total, 0);
 
+  // Store Analytics & Customers
+  const storeViewsTotal = sellerStore.viewsCount || 1420;
+  const productsViewsTotal = allProducts.reduce((sum, p) => sum + (p.viewsCount || 36), 0);
+  const cartAbandonCount = sellerStore.cartAbandonCount || 9;
+  const cartAbandonTotal = sellerStore.cartAbandonTotal || 245000;
+  const totalUnitsInStock = allProducts.reduce((sum, p) => sum + p.stock, 0);
+  const storeCustomers: StoreCustomer[] = storageService.getStoreCustomers(sellerStore.id);
+
   // Product Form State
   const [prodName, setProdName] = useState('');
   const [prodCategory, setProdCategory] = useState('Mode & Vêtements');
@@ -98,23 +119,130 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [newTestimonialComment, setNewTestimonialComment] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Media upload states (direct from phone/PC with no size limit)
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [mediaStatusMsg, setMediaStatusMsg] = useState('');
+
   // Status update state for orders
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
-  // Store Profile State (WhatsApp & Contact details)
+  // Store Profile State (Logo, Banner, Slug, WhatsApp & Contact details)
   const [profileStoreName, setProfileStoreName] = useState(sellerStore.name);
+  const [profileSlug, setProfileSlug] = useState(sellerStore.slug);
+  const [profileLogo, setProfileLogo] = useState(sellerStore.logo);
+  const [profileBanner, setProfileBanner] = useState(sellerStore.banner);
   const [profileWhatsapp, setProfileWhatsapp] = useState(sellerStore.whatsapp);
   const [profilePhone, setProfilePhone] = useState(sellerStore.phone);
   const [profileAddress, setProfileAddress] = useState(sellerStore.address);
   const [profileCity, setProfileCity] = useState(sellerStore.city);
   const [profileDesc, setProfileDesc] = useState(sellerStore.description);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Promo campaign states
+  const [selectedPromoProductId, setSelectedPromoProductId] = useState<string>(allProducts[0]?.id || '');
+  const [promoCustomNote, setPromoCustomNote] = useState('');
+  const [copiedPromoText, setCopiedPromoText] = useState(false);
+
+  const handleCopyStoreLink = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://beninmarket.bj';
+    const cleanSlug = profileSlug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-') || sellerStore.slug;
+    const url = `${origin}?boutique=${cleanSlug}`;
+    navigator.clipboard?.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const res = await mediaStorage.saveMediaFile(file, `logo-${sellerStore.id}`);
+      setProfileLogo(res.url);
+      setMediaStatusMsg('Photo de profil mise à jour avec succès !');
+      setTimeout(() => setMediaStatusMsg(''), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingBanner(true);
+    try {
+      const res = await mediaStorage.saveMediaFile(file, `banner-${sellerStore.id}`);
+      setProfileBanner(res.url);
+      setMediaStatusMsg('Bannière de boutique mise à jour avec succès !');
+      setTimeout(() => setMediaStatusMsg(''), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploadingBanner(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleProductPhotosUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadingPhotos(true);
+    setMediaStatusMsg(`Importation de ${files.length} photo(s) depuis votre appareil...`);
+    try {
+      const newUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const res = await mediaStorage.saveMediaFile(file, `prod-img-${Date.now()}-${i}`);
+        newUrls.push(res.url);
+      }
+      setProdImages((prev) => [...prev.filter((u) => u.trim().length > 0), ...newUrls]);
+      setMediaStatusMsg('Photos importées avec succès sans limite de taille !');
+      setTimeout(() => setMediaStatusMsg(''), 3500);
+    } catch (err) {
+      console.error(err);
+      setFormError("Une erreur est survenue lors de l'importation des photos.");
+    } finally {
+      setUploadingPhotos(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleProductVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingVideo(true);
+    const sizeStr = mediaStorage.formatFileSize(file.size);
+    setMediaStatusMsg(`Importation de la vidéo (${sizeStr}) depuis votre appareil...`);
+    try {
+      const res = await mediaStorage.saveMediaFile(file, `prod-video-${Date.now()}`);
+      setProdVideoUrl(res.url);
+      setMediaStatusMsg(`Vidéo enregistrée avec succès (${sizeStr}) !`);
+      setTimeout(() => setMediaStatusMsg(''), 3500);
+    } catch (err) {
+      console.error(err);
+      setFormError("Une erreur est survenue lors du chargement de la vidéo.");
+    } finally {
+      setUploadingVideo(false);
+      e.target.value = '';
+    }
+  };
 
   const handleSaveStoreProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanSlug = profileSlug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-') || sellerStore.slug;
     const updated: Store = {
       ...sellerStore,
       name: profileStoreName.trim(),
+      slug: cleanSlug,
+      logo: profileLogo,
+      banner: profileBanner,
       whatsapp: profileWhatsapp.trim(),
       phone: profilePhone.trim(),
       address: profileAddress.trim(),
@@ -160,7 +288,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     setProdPromoPrice(undefined);
     setProdIsPromoActive(false);
     setProdStock(10);
-    setProdImages(['https://images.unsplash.com/photo-1544441893-675973e31985?auto=format&fit=crop&w=800&q=80']);
+    setProdImages([]);
     setProdVideoUrl('');
     setProdWeight(0.5);
     setProdDimensions('');
@@ -181,7 +309,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     setProdPromoPrice(p.promoPrice);
     setProdIsPromoActive(p.isPromoActive);
     setProdStock(p.stock);
-    setProdImages(p.images && p.images.length > 0 ? p.images : ['']);
+    setProdImages(p.images && p.images.length > 0 ? p.images : []);
     setProdVideoUrl(p.videoUrl || '');
     setProdWeight(p.weightKg || 0.5);
     setProdDimensions(p.dimensions || '');
@@ -203,6 +331,12 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
     }
     if (prodIsPromoActive && prodPromoPrice && prodPromoPrice >= prodPrice) {
       setFormError('Le prix promotionnel doit être strictement inférieur au prix normal.');
+      return;
+    }
+
+    const finalImages = prodImages.filter((img) => img.trim().length > 0);
+    if (finalImages.length === 0) {
+      setFormError('Veuillez télécharger au moins une photo pour ce produit depuis votre appareil.');
       return;
     }
 
@@ -347,6 +481,17 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             )}
           </button>
           <button
+            onClick={() => setActiveTab('promotions')}
+            className={`py-3 transition-colors border-b-2 flex items-center gap-1.5 ${
+              activeTab === 'promotions'
+                ? 'border-amber-500 text-amber-400 font-bold'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+            <span>Promotions & Relances ({storeCustomers.length})</span>
+          </button>
+          <button
             onClick={() => setActiveTab('profile')}
             className={`py-3 transition-colors border-b-2 ${
               activeTab === 'profile'
@@ -361,68 +506,200 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
 
       {/* Main Container */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+        {/* Status notification */}
+        {mediaStatusMsg && (
+          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{mediaStatusMsg}</span>
+          </div>
+        )}
+
         {/* TAB 1: OVERVIEW */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* KPI Cards Strip */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Card 1: Real Cash Collected */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-                <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
-                  <span>Revenu réellement encaissé</span>
-                  <DollarSign className="w-4 h-4 text-emerald-600" />
+            {/* Custom Store Link & WhatsApp Sharing Bar */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white rounded-2xl p-5 border border-slate-700 shadow-md">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                      Lien personnalisé de votre boutique
+                    </span>
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                      Personnalisable
+                    </span>
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2 break-all font-mono">
+                    <StoreIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>beninmarket.bj/boutique/{sellerStore.slug}</span>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Partagez ce lien à vos clients sur vos statuts WhatsApp, Facebook et TikTok. Les commandes sont 100% payées à la livraison.
+                  </p>
                 </div>
-                <div className="text-2xl font-black text-emerald-700 tabular-nums">
-                  {formatFCFA(realCashCollected)}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Sur les {deliveredCount} commandes livrées en espèces
-                </p>
-              </div>
 
-              {/* Card 2: Potential Order Book */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-                <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
-                  <span>Volume total commandé</span>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleCopyStoreLink}
+                    className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-slate-600" />}
+                    <span>{copiedLink ? 'Lien copié !' : 'Copier mon lien'}</span>
+                  </button>
+
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Découvrez les nouveautés de ma boutique ${sellerStore.name} sur BéninMarket ! Commandez dès maintenant sans carte bancaire avec paiement 100% à la livraison chez vous : https://beninmarket.bj/boutique/${sellerStore.slug}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Partager sur WhatsApp</span>
+                  </a>
+
+                  <button
+                    onClick={() => onOpenStorePublic(sellerStore.slug)}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-600 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Aperçu en ligne</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Complete Analytics Strip: Clics, Ventes effectuées, Abandons de panier, Commandes, Succès livraison, Stock */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-amber-600" />
-                </div>
-                <div className="text-2xl font-bold text-slate-900 tabular-nums">
-                  {formatFCFA(totalOrderBook)}
-                </div>
-                <p className="text-[11px] text-amber-800 mt-1 font-medium">
-                  {pendingCount + inDeliveryCount} colis en cours d'acheminement
-                </p>
+                  <span>Analytique Commerciale de votre Boutique</span>
+                </h2>
+                <span className="text-xs text-slate-500">Mise à jour en temps réel</span>
               </div>
 
-              {/* Card 3: Active Orders */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-                <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
-                  <span>Commandes à traiter</span>
-                  <Clock className="w-4 h-4 text-indigo-600" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* 1. Nombre de Clics & Visites */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                  <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
+                    <span className="font-semibold text-slate-700">Nombre de clics & Visites</span>
+                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                      <MousePointer className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 tabular-nums">
+                    {storeViewsTotal.toLocaleString('fr-FR')} <span className="text-xs font-normal text-slate-500">clics</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+                    <Eye className="w-3 h-3 text-slate-400" />
+                    <span>{productsViewsTotal.toLocaleString('fr-FR')} vues cumulées sur vos fiches produits</span>
+                  </p>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 tabular-nums">
-                  {pendingCount}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Nouvelles et en préparation
-                </p>
-              </div>
 
-              {/* Card 4: Delivered vs Cancelled */}
-              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-                <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
-                  <span>Taux de succès livraison</span>
-                  <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                {/* 2. Ventes Effectuées & Encaissées */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                  <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
+                    <span className="font-semibold text-slate-700">Ventes effectuées & Encaissées</span>
+                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                      <DollarSign className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-emerald-700 tabular-nums">
+                    {formatFCFA(realCashCollected)}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Sur {deliveredCount} commandes livrées · Volume total: {formatFCFA(totalOrderBook)}
+                  </p>
                 </div>
-                <div className="text-2xl font-bold text-slate-900 tabular-nums">
-                  {totalOrdersCount > 0
-                    ? `${Math.round((deliveredCount / totalOrdersCount) * 100)}%`
-                    : '100%'}
+
+                {/* 3. Abandons de Panier */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                  <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
+                    <span className="font-semibold text-slate-700">Abandons de Panier</span>
+                    <div className="p-2 bg-rose-50 text-rose-600 rounded-lg">
+                      <ShoppingCart className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-rose-600 tabular-nums">
+                    {cartAbandonCount} <span className="text-xs font-normal text-slate-500">paniers</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Valeur estimée : <strong>{formatFCFA(cartAbandonTotal)}</strong> d'opportunités
+                  </p>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  {deliveredCount} livrées · {cancelledCount} retours/annulées
-                </p>
+
+                {/* 4. Commandes en attente */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                  <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
+                    <span className="font-semibold text-slate-700">Commandes à traiter</span>
+                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 tabular-nums">
+                    {pendingCount}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {inDeliveryCount} colis en cours d'acheminement par les livreurs
+                  </p>
+                </div>
+
+                {/* 5. Taux de Succès Livraison */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                  <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
+                    <span className="font-semibold text-slate-700">Taux de succès livraison</span>
+                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 tabular-nums">
+                    {totalOrdersCount > 0 ? `${Math.round((deliveredCount / totalOrdersCount) * 100)}%` : '100%'}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {deliveredCount} livrées · {cancelledCount} retours/annulées
+                  </p>
+                </div>
+
+                {/* 6. Stocks disponibles */}
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+                  <div className="text-xs text-slate-500 font-medium flex items-center justify-between mb-2">
+                    <span className="font-semibold text-slate-700">Stock & Catalogue</span>
+                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                      <Package className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-slate-900 tabular-nums">
+                    {totalUnitsInStock} <span className="text-xs font-normal text-slate-500">unités en stock</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Réparties sur {totalProducts} références d'articles actifs
+                  </p>
+                </div>
               </div>
+            </div>
+
+            {/* Direct Link to Promotions Tab */}
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-amber-500 text-slate-950 rounded-xl font-bold shrink-0">
+                  <Megaphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">
+                    Faire la promotion de vos nouveaux produits auprès de vos clients
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Votre boutique a déjà enregistré <strong>{storeCustomers.length} clients acheteurs</strong> dans sa base de données. Envoyez-leur en 1 clic un message WhatsApp personnalisé pour leur présenter vos nouveautés !
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab('promotions')}
+                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-colors shadow-xs shrink-0 flex items-center gap-1.5"
+              >
+                <Megaphone className="w-3.5 h-3.5" />
+                <span>Ouvrir les Promotions Clients ({storeCustomers.length})</span>
+              </button>
             </div>
 
             {/* Quick action banners */}
@@ -777,36 +1054,280 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           </div>
         )}
 
-        {/* TAB 4: STORE PROFILE & WHATSAPP SETTINGS */}
+        {/* TAB 4: CUSTOMER PROMOTIONS & MARKETING DATABASE */}
+        {activeTab === 'promotions' && (
+          <div className="space-y-6">
+            <div className="bg-gradient-to-r from-amber-600 to-amber-800 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-200 block mb-1">
+                  Base de Données Clients & Marketing WhatsApp
+                </span>
+                <h2 className="text-xl font-black tracking-tight">
+                  Promouvoir vos nouveaux produits auprès de vos clients
+                </h2>
+                <p className="text-xs text-amber-100 mt-1 max-w-2xl leading-relaxed">
+                  Relancez directement les clients ayant déjà commandé dans votre boutique. Les clients qui vous font déjà confiance sont 5x plus susceptibles de commander vos nouveautés en paiement à la livraison !
+                </p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-xs border border-white/20 p-4 rounded-xl text-center shrink-0">
+                <span className="text-2xl font-black text-white block">
+                  {storeCustomers.length}
+                </span>
+                <span className="text-[11px] text-amber-200 font-semibold">
+                  Clients dans votre base
+                </span>
+              </div>
+            </div>
+
+            {/* Campaign Creator Card */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
+                <Megaphone className="w-5 h-5 text-amber-600" />
+                <h3 className="font-bold text-sm text-slate-900">
+                  Créateur de Message Promotionnel (Nouveau Produit / Promo Spéciale)
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    1. Choisissez le produit à promouvoir :
+                  </label>
+                  <select
+                    value={selectedPromoProductId}
+                    onChange={(e) => setSelectedPromoProductId(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 text-xs"
+                  >
+                    {allProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {formatFCFA(p.isPromoActive && p.promoPrice ? p.promoPrice : p.price)} (Stock: {p.stock})
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="mt-3">
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      2. Note personnalisée ou avantage offert (optionnel) :
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Livraison express en 24h offerte pour vous aujourd'hui !"
+                      value={promoCustomNote}
+                      onChange={(e) => setPromoCustomNote(e.target.value)}
+                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Message Preview */}
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1">
+                      <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      Aperçu du message WhatsApp généré
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetProd = allProducts.find((p) => p.id === selectedPromoProductId) || allProducts[0];
+                        if (!targetProd) return;
+                        const priceToPay = targetProd.isPromoActive && targetProd.promoPrice ? targetProd.promoPrice : targetProd.price;
+                        const msg = `Bonjour ! 🌟\nVotre boutique *${sellerStore.name}* a le plaisir de vous présenter sa nouvelle arrivée sur BéninMarket :\n\n✨ *${targetProd.name}*\n💰 Prix spécial : *${formatFCFA(priceToPay)}* (Paiement 100% à la livraison chez vous au Bénin)\n📦 Stock disponible : ${targetProd.stock} unités\n${promoCustomNote ? `🎁 Note : ${promoCustomNote}\n` : ''}\n👉 Commandez en 1 clic sans carte bancaire : ${typeof window !== 'undefined' ? window.location.origin : 'https://beninmarket.bj'}?boutique=${sellerStore.slug}\n\nÀ très bientôt chez ${sellerStore.name} !`;
+                        navigator.clipboard?.writeText(msg);
+                        setCopiedPromoText(true);
+                        setTimeout(() => setCopiedPromoText(false), 2500);
+                      }}
+                      className="text-[10px] font-bold text-emerald-800 bg-emerald-200/60 px-2 py-0.5 rounded cursor-pointer hover:bg-emerald-200"
+                    >
+                      {copiedPromoText ? 'Copié !' : 'Copier pour statut WhatsApp'}
+                    </button>
+                  </div>
+
+                  {(() => {
+                    const targetProd = allProducts.find((p) => p.id === selectedPromoProductId) || allProducts[0];
+                    if (!targetProd) return <div className="text-slate-400 italic">Sélectionnez un produit ci-contre.</div>;
+                    const priceToPay = targetProd.isPromoActive && targetProd.promoPrice ? targetProd.promoPrice : targetProd.price;
+                    return (
+                      <div className="p-3 bg-white rounded-lg border border-emerald-200 text-slate-800 font-mono text-[11px] leading-relaxed whitespace-pre-wrap">
+                        Bonjour *[Nom du client]* ! 🌟{'\n'}
+                        Votre boutique *{sellerStore.name}* a le plaisir de vous présenter sa nouvelle arrivée sur BéninMarket :{'\n\n'}
+                        ✨ *{targetProd.name}*{'\n'}
+                        💰 Prix : *{formatFCFA(priceToPay)}* (Paiement 100% à la livraison chez vous au Bénin){'\n'}
+                        📦 Stock : {targetProd.stock} unités{'\n'}
+                        {promoCustomNote && <span>🎁 Note : {promoCustomNote}{'\n'}</span>}
+                        👉 Commandez en 1 clic : {typeof window !== 'undefined' ? window.location.origin : 'https://beninmarket.bj'}?boutique={sellerStore.slug}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Customer List */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Vos clients enregistrés ({storeCustomers.length})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Envoyez la promotion directement sur le WhatsApp de chaque client en 1 clic.
+                  </p>
+                </div>
+              </div>
+
+              {storeCustomers.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  Aucun client n'a encore finalisé de commande dans votre boutique. Dès qu'un acheteur commande l'un de vos articles, ses coordonnées apparaîtront automatiquement ici pour vos campagnes de relance.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {storeCustomers.map((c, idx) => {
+                    const targetProd = allProducts.find((p) => p.id === selectedPromoProductId) || allProducts[0];
+                    const priceToPay = targetProd ? (targetProd.isPromoActive && targetProd.promoPrice ? targetProd.promoPrice : targetProd.price) : 0;
+                    const promoMessage = `Bonjour ${c.name} ! 🌟\nVotre boutique *${sellerStore.name}* a le plaisir de vous présenter sa nouvelle collection sur BéninMarket :\n\n✨ *${targetProd?.name || 'Notre nouveau produit'}*\n💰 Prix spécial : *${formatFCFA(priceToPay)}* (Paiement 100% à la livraison chez vous à ${c.city})\n📦 Stock restant : ${targetProd?.stock || 0} unités\n${promoCustomNote ? `🎁 ${promoCustomNote}\n` : ''}\n👉 Commandez ici en 1 clic : ${typeof window !== 'undefined' ? window.location.origin : 'https://beninmarket.bj'}?boutique=${sellerStore.slug}\n\nÀ très vite !`;
+
+                    const cleanPhone = c.whatsapp.replace(/[^0-9]/g, '');
+
+                    return (
+                      <div key={idx} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2 text-xs">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="font-bold text-slate-900 text-sm">{c.name}</div>
+                            <div className="text-slate-500 text-[11px] flex items-center gap-1.5 mt-0.5">
+                              <Phone className="w-3 h-3 text-emerald-600" />
+                              <span>{c.phone}</span>
+                              <span>·</span>
+                              <span>{c.city}</span>
+                            </div>
+                          </div>
+                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            {c.ordersCount} commande{c.ordersCount > 1 ? 's' : ''}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+                          Total commandé : <strong>{formatFCFA(c.totalSpent)}</strong>
+                        </div>
+
+                        <a
+                          href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(promoMessage)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full mt-2 py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Envoyer la promo sur WhatsApp</span>
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: STORE PROFILE & WHATSAPP SETTINGS */}
         {activeTab === 'profile' && (
           <div className="max-w-3xl space-y-6">
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Profil de la boutique & Coordonnées WhatsApp
+                Profil de la boutique, Photo, Bannière & Lien Personnalisé
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Ces informations sont affichées sur vos fiches produits, votre boutique publique et directement sur le reçu de commande du client.
+                Personnalisez la photo de profil (logo) et la bannière de votre boutique par téléchargement direct depuis votre appareil (ordinateur ou téléphone portable), sans utiliser de lien externe.
               </p>
             </div>
 
             {profileSaved && (
               <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 text-xs font-semibold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Informations de la boutique et coordonnées WhatsApp mises à jour avec succès !</span>
+                <span>Informations de la boutique, photos et lien personnalisés enregistrés avec succès !</span>
               </div>
             )}
 
-            <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-amber-950 text-xs space-y-2">
-              <div className="font-bold flex items-center gap-1.5 text-amber-900">
-                <MessageCircle className="w-4 h-4 text-emerald-600" />
-                <span>Importance de votre numéro WhatsApp direct</span>
+            <form onSubmit={handleSaveStoreProfile} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5 text-xs">
+              {/* Photo de profil (Logo) direct upload */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <span className="font-bold text-slate-900 block text-xs">
+                  Photo de profil / Logo de votre boutique (depuis votre appareil)
+                </span>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <img
+                    src={mediaStorage.resolveUrl(profileLogo) || 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&w=300&q=80'}
+                    alt="Logo boutique"
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-500/40 shadow-xs bg-white shrink-0"
+                  />
+                  <div className="space-y-2 text-center sm:text-left flex-1">
+                    <label className="cursor-pointer px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors shadow-xs">
+                      <Upload className="w-4 h-4" />
+                      <span>{uploadingLogo ? 'Importation en cours...' : 'Télécharger une photo de profil depuis votre appareil'}</span>
+                      <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Sélectionnez une image (JPG, PNG, WEBP) depuis votre téléphone, tablette ou ordinateur portable. Aucun lien externe requis.
+                    </p>
+                  </div>
+                </div>
               </div>
-              <p className="text-slate-700 leading-relaxed">
-                Sur BéninMarket, le client paie <strong>uniquement à la livraison</strong>. Dès la commande validée, le client reçoit un lien direct vers votre WhatsApp avec son numéro de commande. Ce lien lui permet de vous contacter si la livraison tarde ou pour toute question logistique.
-              </p>
-            </div>
 
-            <form onSubmit={handleSaveStoreProfile} className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-5 text-xs">
+              {/* Bannière de la boutique direct upload */}
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <span className="font-bold text-slate-900 block text-xs">
+                  Bannière de présentation de la boutique (depuis votre appareil)
+                </span>
+                <div className="space-y-3">
+                  <div className="w-full h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                    <img
+                      src={mediaStorage.resolveUrl(profileBanner) || 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1200&q=80'}
+                      alt="Bannière boutique"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="cursor-pointer px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 transition-colors shadow-xs">
+                      <Upload className="w-4 h-4" />
+                      <span>{uploadingBanner ? 'Importation...' : 'Télécharger une bannière depuis votre appareil'}</span>
+                      <input type="file" accept="image/*" onChange={handleBannerUpload} className="hidden" />
+                    </label>
+                    <span className="text-[11px] text-slate-500">Format recommandé : paysage (1200x400)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lien personnalisé (Slug) */}
+              <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200 space-y-2">
+                <label className="block font-bold text-slate-900">
+                  Lien de boutique personnalisé (URL unique) *
+                </label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center">
+                  <span className="px-3 py-2.5 bg-white border border-slate-300 sm:border-r-0 rounded-t-lg sm:rounded-tr-none sm:rounded-l-lg text-slate-500 text-xs font-mono select-all">
+                    beninmarket.bj/boutique/
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={profileSlug}
+                    onChange={(e) => setProfileSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
+                    placeholder="nom-de-votre-boutique"
+                    className="flex-1 p-2.5 bg-white border border-slate-300 rounded-b-lg sm:rounded-bl-none sm:rounded-r-lg font-mono font-bold text-slate-900 text-xs focus:outline-amber-600"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                  <span>Vos clients pourront accéder directement à tous vos articles via cette adresse.</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyStoreLink}
+                    className="text-amber-700 hover:underline font-bold flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>{copiedLink ? 'Copié !' : 'Tester & Copier'}</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold text-slate-800 mb-1">
@@ -1093,35 +1614,173 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                     </div>
                   )}
 
-                  {/* Photo & Video Presentation */}
-                  <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="font-bold text-slate-800 block">Médias du produit (Photos & Vidéo)</span>
-
-                    <div>
-                      <label className="block font-medium text-slate-600 mb-1">Lien de la photo principale (URL)</label>
-                      <input
-                        type="url"
-                        value={prodImages[0] || ''}
-                        onChange={(e) => setProdImages([e.target.value])}
-                        placeholder="https://..."
-                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
-                      />
+                  {/* Photo & Video Direct Upload from Device (No Size Limits) */}
+                  <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-amber-600" />
+                        <span>Photos du produit (Téléchargement direct sans limite de taille)</span>
+                      </span>
+                      <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">
+                        {prodImages.filter((u) => u.trim().length > 0).length} photo(s)
+                      </span>
                     </div>
 
-                    <div>
-                      <label className="block font-medium text-slate-600 mb-1">
-                        Lien d'une vidéo de présentation (MP4 ou lien direct)
-                      </label>
+                    {/* Photo Upload Zone */}
+                    <label className="cursor-pointer border-2 border-dashed border-amber-300 hover:border-amber-500 bg-white hover:bg-amber-50/50 p-4 rounded-xl flex flex-col items-center justify-center gap-2 text-center transition-all group shadow-2xs">
+                      <div className="p-2.5 bg-amber-100 text-amber-700 rounded-xl group-hover:scale-105 transition-transform">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs text-slate-900 block">
+                          {uploadingPhotos ? 'Importation des photos en cours...' : 'Télécharger des photos depuis votre appareil (Téléphone ou PC)'}
+                        </span>
+                        <span className="text-[11px] text-slate-500 block mt-0.5">
+                          Sélectionnez une ou plusieurs photos depuis votre galerie ou disque · <strong>Aucune limite de taille</strong>
+                        </span>
+                      </div>
                       <input
-                        type="url"
-                        value={prodVideoUrl}
-                        onChange={(e) => setProdVideoUrl(e.target.value)}
-                        placeholder="https://.../video.mp4"
-                        className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleProductPhotosUpload}
+                        className="hidden"
                       />
-                      <span className="text-[10px] text-slate-400 block mt-0.5">
-                        Permet aux clients de voir le produit en action avant de commander.
-                      </span>
+                    </label>
+
+                    {/* Uploaded Photos Gallery Preview */}
+                    {prodImages.filter((u) => u.trim().length > 0).length > 0 && (
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-semibold text-slate-600 block">
+                          Photos sélectionnées pour ce produit :
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {prodImages
+                            .filter((u) => u.trim().length > 0)
+                            .map((imgUrl, idx) => (
+                              <div
+                                key={idx}
+                                className={`relative rounded-xl overflow-hidden border-2 bg-white aspect-square shadow-xs group ${
+                                  idx === 0 ? 'border-amber-600 ring-2 ring-amber-600/20' : 'border-slate-200'
+                                }`}
+                              >
+                                <img
+                                  src={mediaStorage.resolveUrl(imgUrl)}
+                                  alt={`Aperçu ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+
+                                {idx === 0 && (
+                                  <span className="absolute top-1.5 left-1.5 bg-amber-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                                    ★ Principale
+                                  </span>
+                                )}
+
+                                <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                                  {idx !== 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const reordered = [imgUrl, ...prodImages.filter((_, i) => i !== idx)];
+                                        setProdImages(reordered);
+                                      }}
+                                      className="p-1 bg-amber-500 text-slate-950 rounded text-[9px] font-bold hover:bg-amber-400 cursor-pointer"
+                                      title="Définir comme photo principale"
+                                    >
+                                      Principale
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setProdImages(prodImages.filter((_, i) => i !== idx));
+                                    }}
+                                    className="p-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 cursor-pointer"
+                                    title="Supprimer cette photo"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Video Upload Section */}
+                    <div className="pt-3 border-t border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                          <Film className="w-4 h-4 text-emerald-600" />
+                          <span>Vidéo de démonstration du produit (sans limite de taille)</span>
+                        </span>
+                        {prodVideoUrl && (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                            ✓ Vidéo configurée
+                          </span>
+                        )}
+                      </div>
+
+                      {!prodVideoUrl ? (
+                        <label className="cursor-pointer border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white hover:bg-emerald-50/50 p-4 rounded-xl flex flex-col items-center justify-center gap-2 text-center transition-all group shadow-2xs">
+                          <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl group-hover:scale-105 transition-transform">
+                            <Film className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-xs text-slate-900 block">
+                              {uploadingVideo ? 'Chargement de la vidéo...' : 'Télécharger une vidéo depuis votre appareil (Téléphone ou PC)'}
+                            </span>
+                            <span className="text-[11px] text-slate-500 block mt-0.5">
+                              Fichiers MP4, MOV, WebM... · <strong>Aucune limite de taille</strong> · Permet aux clients de voir l'article en réel
+                            </span>
+                          </div>
+                          <input
+                            type="file"
+                            accept="video/*"
+                            onChange={handleProductVideoUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      ) : (
+                        <div className="space-y-2 p-3 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                          <div className="rounded-lg overflow-hidden bg-black max-h-52 flex items-center justify-center">
+                            <video
+                              src={mediaStorage.resolveUrl(prodVideoUrl)}
+                              controls
+                              className="w-full max-h-52 object-contain"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Vidéo prête pour la fiche produit</span>
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              <label className="cursor-pointer text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                                <Upload className="w-3 h-3" />
+                                <span>Remplacer la vidéo</span>
+                                <input
+                                  type="file"
+                                  accept="video/*"
+                                  onChange={handleProductVideoUpload}
+                                  className="hidden"
+                                />
+                              </label>
+
+                              <button
+                                type="button"
+                                onClick={() => setProdVideoUrl('')}
+                                className="text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Supprimer</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

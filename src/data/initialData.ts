@@ -94,6 +94,9 @@ export const INITIAL_STORES: Store[] = [
     rating: 4.9,
     reviewCount: 38,
     deliveryZones: DEFAULT_DELIVERY_ZONES,
+    viewsCount: 1420,
+    cartAbandonCount: 9,
+    cartAbandonTotal: 245000,
     createdAt: '2026-01-15T10:00:00Z',
   },
   {
@@ -114,6 +117,9 @@ export const INITIAL_STORES: Store[] = [
     rating: 4.8,
     reviewCount: 52,
     deliveryZones: DEFAULT_DELIVERY_ZONES,
+    viewsCount: 2310,
+    cartAbandonCount: 14,
+    cartAbandonTotal: 310000,
     createdAt: '2026-02-01T11:00:00Z',
   },
   {
@@ -134,6 +140,9 @@ export const INITIAL_STORES: Store[] = [
     rating: 4.95,
     reviewCount: 44,
     deliveryZones: DEFAULT_DELIVERY_ZONES,
+    viewsCount: 980,
+    cartAbandonCount: 5,
+    cartAbandonTotal: 84000,
     createdAt: '2026-02-10T14:30:00Z',
   },
 ];

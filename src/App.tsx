@@ -58,7 +58,10 @@ export default function App() {
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Toutes les catégories');
+  const [selectedCity, setSelectedCity] = useState('Toutes les villes');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'popular'>('featured');
+
+  const BENIN_CITIES = ['Toutes les villes', 'Cotonou', 'Abomey-Calavi', 'Porto-Novo', 'Parakou', 'Ouidah', 'Bohicon', 'Natitingou'];
 
   // Modals
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -114,13 +117,25 @@ export default function App() {
   // Filtered and sorted products for home/categories view
   const filteredProducts = products.filter((p) => {
     if (!p.isPublished) return false;
+    const store = stores.find((s) => s.id === p.storeId);
+    const cleanQ = searchQuery.toLowerCase().trim();
+
     const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase());
+      !cleanQ ||
+      p.name.toLowerCase().includes(cleanQ) ||
+      p.description.toLowerCase().includes(cleanQ) ||
+      p.category.toLowerCase().includes(cleanQ) ||
+      (store && store.name.toLowerCase().includes(cleanQ)) ||
+      (store && store.city.toLowerCase().includes(cleanQ));
+
     const matchesCategory =
       selectedCategory === 'Toutes les catégories' || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+
+    const matchesCity =
+      selectedCity === 'Toutes les villes' ||
+      (store && store.city.toLowerCase() === selectedCity.toLowerCase());
+
+    return matchesSearch && matchesCategory && matchesCity;
   });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
@@ -257,10 +272,24 @@ export default function App() {
           setAuthModalMode(mode || 'login');
           setIsAuthModalOpen(true);
         }}
+        products={products}
+        stores={stores}
+        selectedCity={selectedCity}
+        onSelectProduct={(p) => {
+          setSelectedProduct(p);
+          storageService.recordProductView(p.id);
+        }}
+        onSelectStore={(slug) => handleOpenStore(slug)}
+        onSelectCity={(city) => {
+          setSelectedCity(city);
+          if (currentView !== 'categories' && currentView !== 'home') {
+            setCurrentView('categories');
+          }
+        }}
       />
 
-      {/* Main View Switcher */}
-      <main className="flex-1">
+      {/* Main View Switcher - pb-20 on mobile prevents bottom navigation overlap */}
+      <main className="flex-1 pb-20 md:pb-0">
         {/* VIEW 1: HOME */}
         {currentView === 'home' && (
           <div>
@@ -370,9 +399,10 @@ export default function App() {
               </div>
             </section>
 
-            {/* Category Selector Bar */}
-            <section className="bg-white border-b border-slate-200 py-4">
+            {/* Category & Location Selector Bar */}
+            <section className="bg-white border-b border-slate-200 py-3.5 space-y-3">
               <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                {/* Categories */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
                   {CATEGORIES.map((cat) => (
                     <button
@@ -387,6 +417,38 @@ export default function App() {
                       {cat}
                     </button>
                   ))}
+                </div>
+
+                {/* Cities / Locations Filter */}
+                <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-slate-100 scrollbar-none">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1 shrink-0">
+                    <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Lieux au Bénin :</span>
+                  </span>
+                  {BENIN_CITIES.map((city) => {
+                    const isSelected = selectedCity === city;
+                    return (
+                      <button
+                        key={city}
+                        onClick={() => setSelectedCity(city)}
+                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                          isSelected
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {city}
+                      </button>
+                    );
+                  })}
+                  {selectedCity !== 'Toutes les villes' && (
+                    <button
+                      onClick={() => setSelectedCity('Toutes les villes')}
+                      className="text-[10px] text-amber-700 hover:underline font-semibold ml-1 shrink-0 cursor-pointer"
+                    >
+                      Réinitialiser la ville
+                    </button>
+                  )}
                 </div>
               </div>
             </section>
@@ -591,20 +653,49 @@ export default function App() {
               Tous nos articles physiques livrables à domicile au Bénin
             </p>
 
-            <div className="flex gap-2 flex-wrap mb-8">
+            <div className="flex gap-2 flex-wrap mb-4">
               {CATEGORIES.map((c) => (
                 <button
                   key={c}
                   onClick={() => setSelectedCategory(c)}
                   className={`px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer ${
                     selectedCategory === c
-                      ? 'bg-amber-600 text-white'
+                      ? 'bg-amber-600 text-white shadow-xs'
                       : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   {c}
                 </button>
               ))}
+            </div>
+
+            {/* City location filter */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-6 mb-4 border-b border-slate-200 scrollbar-none">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1 shrink-0">
+                <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                <span>Filtrer par ville :</span>
+              </span>
+              {BENIN_CITIES.map((city) => (
+                <button
+                  key={city}
+                  onClick={() => setSelectedCity(city)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap cursor-pointer transition-colors ${
+                    selectedCity === city
+                      ? 'bg-slate-900 text-white font-bold'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {city}
+                </button>
+              ))}
+              {selectedCity !== 'Toutes les villes' && (
+                <button
+                  onClick={() => setSelectedCity('Toutes les villes')}
+                  className="text-xs text-amber-700 hover:underline font-semibold ml-2 shrink-0 cursor-pointer"
+                >
+                  Réinitialiser la ville
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

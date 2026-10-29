@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Store, Product } from '../types';
 import { ProductCard } from './ProductCard';
 import { formatFCFA } from '../utils/formatters';
+import { mediaStorage } from '../services/mediaStorage';
 import {
   MapPin,
   Phone,
@@ -77,7 +78,7 @@ export const StorePublicPage: React.FC<StorePublicPageProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="relative h-48 sm:h-64 rounded-2xl overflow-hidden bg-slate-800 shadow-sm border border-slate-200">
           <img
-            src={store.banner}
+            src={mediaStorage.resolveUrl(store.banner)}
             alt={store.name}
             className="w-full h-full object-cover opacity-85"
           />
@@ -88,7 +89,7 @@ export const StorePublicPage: React.FC<StorePublicPageProps> = ({
         <div className="relative -mt-16 sm:-mt-20 mx-4 sm:mx-8 bg-white rounded-2xl shadow-md border border-slate-200 p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
             <img
-              src={store.logo}
+              src={mediaStorage.resolveUrl(store.logo)}
               alt={store.name}
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-4 border-white shadow-md bg-white shrink-0"
             />

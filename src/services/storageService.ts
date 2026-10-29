@@ -9,6 +9,7 @@ import {
   PlatformSettings,
   OrderStatus,
   SupportTicket,
+  StoreCustomer,
 } from '../types';
 import {
   INITIAL_USERS,
@@ -293,6 +294,81 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
       this.notify();
     }
+  }
+
+  public recordProductView(productId: string): void {
+    const products = this.getProducts();
+    const p = products.find((prod) => prod.id === productId);
+    if (p) {
+      p.viewsCount = (p.viewsCount || 0) + 1;
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      this.recordStoreView(p.storeId);
+      this.notify();
+    }
+  }
+
+  public recordStoreView(storeId: string): void {
+    const stores = this.getStores();
+    const s = stores.find((st) => st.id === storeId);
+    if (s) {
+      s.viewsCount = (s.viewsCount || 0) + 1;
+      localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+      this.notify();
+    }
+  }
+
+  public recordCartAbandon(storeId: string, amount: number): void {
+    const stores = this.getStores();
+    const s = stores.find((st) => st.id === storeId);
+    if (s) {
+      s.cartAbandonCount = (s.cartAbandonCount || 0) + 1;
+      s.cartAbandonTotal = (s.cartAbandonTotal || 0) + amount;
+      localStorage.setItem(STORAGE_KEYS.STORES, JSON.stringify(stores));
+      this.notify();
+    }
+  }
+
+  public getStoreCustomers(storeId: string): StoreCustomer[] {
+    const orders = this.getOrdersByStore(storeId);
+    const map = new Map<string, StoreCustomer>();
+
+    orders.forEach((o) => {
+      const sub = o.subOrders.find((s) => s.storeId === storeId);
+      if (!sub) return;
+
+      const key = o.customerPhone.replace(/[^0-9]/g, '') || o.customerEmail || o.customerName;
+      const existing = map.get(key);
+      const itemsNames = sub.items.map((i) => i.productName);
+
+      if (existing) {
+        existing.ordersCount += 1;
+        existing.totalSpent += sub.total;
+        if (new Date(o.createdAt) > new Date(existing.lastOrderDate)) {
+          existing.lastOrderDate = o.createdAt;
+        }
+        itemsNames.forEach((n) => {
+          if (!existing.lastOrderedItems.includes(n)) {
+            existing.lastOrderedItems.push(n);
+          }
+        });
+      } else {
+        map.set(key, {
+          name: o.customerName,
+          phone: o.customerPhone,
+          whatsapp: o.customerPhone,
+          email: o.customerEmail,
+          city: o.city || 'Cotonou',
+          ordersCount: 1,
+          totalSpent: sub.total,
+          lastOrderDate: o.createdAt,
+          lastOrderedItems: itemsNames,
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.lastOrderDate).getTime() - new Date(a.lastOrderDate).getTime()
+    );
   }
 
   // --- PRODUCTS ---
