@@ -11,7 +11,14 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg', 'icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
+        includeAssets: [
+          'favicon.svg',
+          'icon.svg',
+          'apple-touch-icon.png',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png',
+        ],
         manifest: {
           id: '/',
           name: 'BéninMarket — Marketplace Multivendeurs',
@@ -22,25 +29,25 @@ export default defineConfig(() => {
           display: 'standalone',
           display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
           orientation: 'any',
-          theme_color: '#d97706',
-          background_color: '#0f172a',
+          theme_color: '#006837',
+          background_color: '#ffffff',
           categories: ['shopping', 'business', 'productivity'],
           lang: 'fr-FR',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: '/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: '/pwa-512x512.png',
+              src: '/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: '/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'

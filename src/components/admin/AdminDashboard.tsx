@@ -325,9 +325,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Owner Header */}
       <div className="bg-slate-900 text-white border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-              <ShieldCheck className="w-6 h-6" />
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-white p-0.5 border border-amber-400/50 flex items-center justify-center shrink-0 shadow-md">
+              <img
+                src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+                alt="Logo BéninMarket"
+                className="w-full h-full object-contain rounded-lg"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">

@@ -53,9 +53,13 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
 
         {/* Header with App Icon */}
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 p-0.5 shadow-lg shadow-amber-500/20 flex-shrink-0 flex items-center justify-center">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center p-2">
-              <img src="/icon.svg" alt="BéninMarket Icon" className="w-full h-full object-contain" />
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 via-amber-400 to-red-500 p-0.5 shadow-lg shadow-amber-500/20 flex-shrink-0 flex items-center justify-center">
+            <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center p-1">
+              <img
+                src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+                alt="Logo BéninMarket"
+                className="w-full h-full object-contain rounded-xl"
+              />
             </div>
           </div>
           <div>

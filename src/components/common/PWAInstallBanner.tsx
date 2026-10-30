@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Monitor, Download, X } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall.ts';
 import { PWAInstallModal } from './PWAInstallModal.tsx';
 import { useLanguage } from '../../i18n/LanguageContext.tsx';
@@ -53,12 +53,12 @@ export const PWAInstallBanner: React.FC = () => {
         className="bg-gradient-to-r from-amber-600 via-amber-500 to-amber-700 text-slate-950 px-3.5 py-2 shadow-md flex items-center justify-between gap-3 text-xs sm:text-sm font-medium z-30 transition-all border-b border-amber-400/30"
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-slate-950 text-amber-400 p-1.5 flex-shrink-0 flex items-center justify-center shadow-sm">
-            {isDesktop ? (
-              <Monitor className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Smartphone className="w-4 h-4 text-amber-400" />
-            )}
+          <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex-shrink-0 flex items-center justify-center shadow-sm border border-amber-300">
+            <img
+              src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+              alt="BéninMarket"
+              className="w-full h-full object-contain rounded-md"
+            />
           </div>
           <div className="truncate leading-tight">
             <span className="font-bold text-slate-950 block sm:inline">

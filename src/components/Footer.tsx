@@ -85,12 +85,21 @@ export const Footer: React.FC<FooterProps> = ({
         <div>
           <button
             onClick={onNavigateHome}
-            className="text-lg font-bold tracking-tight text-white mb-3 inline-flex items-center gap-1.5 cursor-pointer"
+            className="mb-3 inline-flex items-center gap-3 text-left cursor-pointer group"
           >
-            <Home className="w-4 h-4 text-amber-500" />
+            <img
+              src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+              alt="BéninMarket — Achetez, Vendez, Gagnez en toute confiance"
+              className="w-16 h-16 rounded-2xl object-contain bg-white p-1 shadow-md border border-slate-700 group-hover:scale-105 transition-transform shrink-0"
+            />
             <div>
-              <span className="text-amber-500">Bénin</span>
-              <span>Market</span>
+              <div className="text-lg font-extrabold tracking-tight text-white leading-tight">
+                <span className="text-emerald-400">Bénin</span>
+                <span className="text-amber-400">Market</span>
+              </div>
+              <span className="text-[10px] text-slate-400 block mt-0.5">
+                Achetez, Vendez, Gagnez en toute confiance
+              </span>
             </div>
           </button>
           <p className="text-slate-400 text-xs leading-relaxed mb-4">

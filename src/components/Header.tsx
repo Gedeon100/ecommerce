@@ -321,15 +321,25 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Main Navigation Row for Seller (NO competitor search, NO buyer cart) */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4 overflow-hidden">
-          {/* Wordmark */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <div className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 leading-none">
-              <span className="text-amber-600">Bénin</span>Market
+          {/* Official Brand Logo + Wordmark */}
+          <button
+            type="button"
+            onClick={() => onNavigate('home')}
+            className="flex items-center gap-2 sm:gap-2.5 shrink-0 cursor-pointer hover:opacity-95 transition-opacity"
+          >
+            <img
+              src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+              alt="Logo BéninMarket"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl object-contain bg-white border border-slate-200 shadow-2xs p-0.5 shrink-0"
+            />
+            <div className="text-lg sm:text-2xl font-black tracking-tight leading-none">
+              <span className="text-emerald-700">Bénin</span>
+              <span className="text-amber-500">Market</span>
             </div>
             <span className="bg-slate-900 text-amber-400 border border-slate-700 font-extrabold text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-md sm:rounded-lg uppercase tracking-wider hidden xs:inline-block">
               Espace Vendeur
             </span>
-          </div>
+          </button>
 
           {/* Center: Seller's Store Card (visible on sm+) */}
           <div className="hidden sm:flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs min-w-0">
@@ -546,14 +556,19 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Main Navigation Header */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-4 md:gap-6 overflow-hidden">
-        {/* Zone 1: Brand Wordmark */}
+        {/* Zone 1: Official Brand Logo + Wordmark */}
         <button
           onClick={() => onNavigate('home')}
-          className="text-lg sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 text-left hover:opacity-90 transition-opacity cursor-pointer flex items-center gap-1.5"
+          className="text-lg sm:text-2xl font-extrabold tracking-tight whitespace-nowrap shrink-0 text-left hover:opacity-95 transition-opacity cursor-pointer flex items-center gap-2 sm:gap-2.5"
         >
+          <img
+            src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+            alt="Logo BéninMarket"
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl object-contain bg-white border border-slate-200 shadow-2xs p-0.5 shrink-0"
+          />
           <div>
-            <span className="text-amber-600">Bénin</span>
-            <span>Market</span>
+            <span className="text-emerald-700">Bénin</span>
+            <span className="text-amber-500">Market</span>
           </div>
           {isAdminSpace && (
             <span className="text-[9px] sm:text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-1.5 py-0.5 rounded-full hidden xs:inline-block">

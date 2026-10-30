@@ -96,20 +96,29 @@ export const BonDeCommandeModal: React.FC<BonDeCommandeModalProps> = ({
         <div className="p-6 sm:p-8 space-y-6 text-slate-800" id="bon-de-commande-content">
           {/* Document Header */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-6 border-b border-slate-200">
-            <div>
-              <div className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-900">
-                <span className="text-amber-600">Bénin</span>
-                <span>Market</span>
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
-                  COD Bénin
-                </span>
+            <div className="flex items-start gap-3">
+              <div className="w-14 h-14 rounded-xl bg-white border border-slate-200 p-1 shadow-xs shrink-0 flex items-center justify-center">
+                <img
+                  src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+                  alt="Logo BéninMarket"
+                  className="w-full h-full object-contain"
+                />
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Plateforme E-commerce Multivendeurs — Paiement 100% à la livraison
-              </p>
-              <p className="text-xs text-slate-400">
-                Contact : support@beninmarket.bj | (+229) 97 00 11 22
-              </p>
+              <div>
+                <div className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-900">
+                  <span className="text-emerald-700">Bénin</span>
+                  <span className="text-amber-500">Market</span>
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">
+                    COD Bénin
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Plateforme E-commerce Multivendeurs — Paiement 100% à la livraison
+                </p>
+                <p className="text-xs text-slate-400">
+                  Contact : support@beninmarket.bj | (+229) 97 00 11 22
+                </p>
+              </div>
             </div>
 
             <div className="text-left sm:text-right space-y-1">

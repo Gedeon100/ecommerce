@@ -370,15 +370,24 @@ export default function App() {
               
               <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 <div className="lg:col-span-7 space-y-6">
-                  {/* First Text: Major platform stats requested */}
-                  <div className="inline-flex flex-wrap items-center gap-2 bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/20 border border-amber-400/40 text-amber-200 px-4 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg">
-                    <span className="flex h-2.5 w-2.5 relative">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
-                    </span>
-                    <span className="text-white">{t('hero.statsUsers')}</span>
-                    <span className="text-amber-400 font-normal">·</span>
-                    <span className="text-amber-300">{t('hero.statsOrders')}</span>
+                  {/* Official BéninMarket Brand Emblem + Live Stats */}
+                  <div className="flex flex-wrap items-center gap-3.5">
+                    <div className="bg-white rounded-2xl p-1.5 shadow-xl border-2 border-amber-400/50 shrink-0">
+                      <img
+                        src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+                        alt="Logo Officiel BéninMarket"
+                        className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl"
+                      />
+                    </div>
+                    <div className="inline-flex flex-wrap items-center gap-2 bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/20 border border-amber-400/40 text-amber-200 px-4 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg">
+                      <span className="flex h-2.5 w-2.5 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
+                      </span>
+                      <span className="text-white">{t('hero.statsUsers')}</span>
+                      <span className="text-amber-400 font-normal">·</span>
+                      <span className="text-amber-300">{t('hero.statsOrders')}</span>
+                    </div>
                   </div>
 
                   <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight text-white font-display">

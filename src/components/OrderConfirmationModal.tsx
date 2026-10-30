@@ -116,17 +116,26 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
 
           {/* Receipt Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
-            <div>
-              <div className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-1">
-                <span className="text-amber-600">Bénin</span>
-                <span>Market</span>
+            <div className="flex items-center gap-3">
+              <div className="w-13 h-13 rounded-xl bg-white border border-slate-200 p-1 shadow-xs shrink-0 flex items-center justify-center">
+                <img
+                  src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+                  alt="Logo BéninMarket"
+                  className="w-full h-full object-contain"
+                />
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Marketplace Multivendeurs · République du Bénin
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Service client : +229 97 00 11 22 · contact@beninmarket.bj
-              </p>
+              <div>
+                <div className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-1">
+                  <span className="text-emerald-700">Bénin</span>
+                  <span className="text-amber-500">Market</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Marketplace Multivendeurs · République du Bénin
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Service client : +229 97 00 11 22 · contact@beninmarket.bj
+                </p>
+              </div>
             </div>
 
             <div className="sm:text-right">

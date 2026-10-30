@@ -161,9 +161,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
         {/* Top Header */}
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <UserIcon className="w-4 h-4" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white p-0.5 border border-amber-400/40 flex items-center justify-center shrink-0 shadow-sm">
+              <img
+                src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+                alt="Logo BéninMarket"
+                className="w-full h-full object-contain rounded-lg"
+              />
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
