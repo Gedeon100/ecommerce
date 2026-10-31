@@ -29,9 +29,9 @@ export const FounderAccessModal: React.FC<FounderAccessModalProps> = ({
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    if (cleanEmail !== 'kazottimahutondj@gmail.com') {
+    if (cleanEmail !== 'kazottimahutondji@gmail.com' && cleanEmail !== 'kazottimahutondj@gmail.com') {
       setErrorMsg(
-        'Adresse e-mail non reconnue. Cet espace est réservé au propriétaire du site.'
+        'Adresse e-mail non reconnue. Cet espace est réservé au propriétaire du site (kazottimahutondji@gmail.com).'
       );
       return;
     }

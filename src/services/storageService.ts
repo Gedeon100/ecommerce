@@ -138,27 +138,26 @@ class StorageService {
       localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SETTINGS));
       localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
     } else {
-      // Sync Owner Admin identity to kazottimahutondj@gmail.com
+      // Sync Owner Admin identity to kazottimahutondji@gmail.com
       try {
         const users = this.getUsers();
-        const adminIdx = users.findIndex((u) => u.role === 'admin' || u.email?.toLowerCase() === 'kazottimahutondj@gmail.com');
+        const adminIdx = users.findIndex(
+          (u) =>
+            u.role === 'admin' ||
+            u.email?.toLowerCase() === 'kazottimahutondji@gmail.com' ||
+            u.email?.toLowerCase() === 'kazottimahutondj@gmail.com'
+        );
         if (adminIdx >= 0) {
-          if (
-            users[adminIdx].email !== 'kazottimahutondj@gmail.com' ||
-            users[adminIdx].password !== 'Samuell@8' ||
-            users[adminIdx].role !== 'admin'
-          ) {
-            users[adminIdx].email = 'kazottimahutondj@gmail.com';
-            users[adminIdx].password = 'Samuell@8';
-            users[adminIdx].role = 'admin';
-            users[adminIdx].name = 'Propriétaire BéninMarket (Administrateur)';
-            localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-          }
+          users[adminIdx].email = 'kazottimahutondji@gmail.com';
+          users[adminIdx].password = 'Samuell@8';
+          users[adminIdx].role = 'admin';
+          users[adminIdx].name = 'Propriétaire BéninMarket (Administrateur)';
+          localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
         } else {
           users.unshift({
             id: 'user-admin',
             name: 'Propriétaire BéninMarket (Administrateur)',
-            email: 'kazottimahutondj@gmail.com',
+            email: 'kazottimahutondji@gmail.com',
             password: 'Samuell@8',
             phone: '+229 97 00 11 22',
             whatsapp: '+229 97 00 11 22',
@@ -168,7 +167,11 @@ class StorageService {
           localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
         }
         const current = this.getCurrentUser();
-        if (current?.role === 'admin' && current.email?.toLowerCase() !== 'kazottimahutondj@gmail.com') {
+        if (
+          current?.role === 'admin' &&
+          current.email?.toLowerCase() !== 'kazottimahutondji@gmail.com' &&
+          current.email?.toLowerCase() !== 'kazottimahutondj@gmail.com'
+        ) {
           localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
         }
         const existingReviews = this.getReviews();
@@ -343,17 +346,22 @@ class StorageService {
     const cleanPass = (password || '').trim();
     const cleanPhone = (identifier || '').replace(/[^0-9]/g, '');
 
-    // Strict Owner Administrator authentication: kazottimahutondj@gmail.com / Samuell@8
-    if (cleanId === 'kazottimahutondj@gmail.com') {
+    // Strict Owner Administrator authentication: kazottimahutondji@gmail.com / Samuell@8
+    if (cleanId === 'kazottimahutondji@gmail.com' || cleanId === 'kazottimahutondj@gmail.com') {
       if (cleanPass !== 'Samuell@8') {
         return { success: false, error: 'Mot de passe administrateur incorrect.' };
       }
-      let admin = users.find((u) => u.email.toLowerCase() === 'kazottimahutondj@gmail.com' || u.role === 'admin');
+      let admin = users.find(
+        (u) =>
+          u.email.toLowerCase() === 'kazottimahutondji@gmail.com' ||
+          u.email.toLowerCase() === 'kazottimahutondj@gmail.com' ||
+          u.role === 'admin'
+      );
       if (!admin) {
         admin = {
           id: 'user-admin',
           name: 'Propriétaire BéninMarket (Administrateur)',
-          email: 'kazottimahutondj@gmail.com',
+          email: 'kazottimahutondji@gmail.com',
           password: 'Samuell@8',
           phone: '+229 97 00 11 22',
           whatsapp: '+229 97 00 11 22',
@@ -362,7 +370,7 @@ class StorageService {
         };
         users.unshift(admin);
       } else {
-        admin.email = 'kazottimahutondj@gmail.com';
+        admin.email = 'kazottimahutondji@gmail.com';
         admin.password = 'Samuell@8';
         admin.role = 'admin';
         admin.name = 'Propriétaire BéninMarket (Administrateur)';

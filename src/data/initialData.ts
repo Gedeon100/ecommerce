@@ -15,7 +15,7 @@ export const INITIAL_USERS: User[] = [
     name: 'Propriétaire & Administrateur BéninMarket',
     firstName: 'Administrateur',
     lastName: 'PROPRIÉTAIRE',
-    email: 'kazottimahutondj@gmail.com',
+    email: 'kazottimahutondji@gmail.com',
     phone: '+229 97 00 11 22',
     whatsapp: '+229 97 00 11 22',
     password: 'Samuell@8',

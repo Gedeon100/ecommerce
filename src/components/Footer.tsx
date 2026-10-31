@@ -41,7 +41,8 @@ export const Footer: React.FC<FooterProps> = ({
   const { language, setLanguage, t } = useLanguage();
   const isOwnerConnected =
     currentUser?.role === 'admin' &&
-    currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com';
+    (currentUser?.email?.toLowerCase() === 'kazottimahutondji@gmail.com' ||
+      currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com');
 
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 text-xs">

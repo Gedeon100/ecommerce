@@ -63,7 +63,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const isOwnerAuthorized =
     currentUser?.role === 'admin' &&
-    currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com';
+    (currentUser?.email?.toLowerCase() === 'kazottimahutondji@gmail.com' ||
+      currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com');
 
   const [activeTab, setActiveTab] = useState<
     'overview' | 'stores' | 'orders' | 'reviews' | 'products' | 'settings' | 'database'

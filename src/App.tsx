@@ -77,7 +77,9 @@ export default function App() {
     () =>
       currentUser?.role === 'seller'
         ? 'seller'
-        : currentUser?.role === 'admin' && currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com'
+        : currentUser?.role === 'admin' &&
+          (currentUser?.email?.toLowerCase() === 'kazottimahutondji@gmail.com' ||
+            currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com')
         ? 'admin'
         : 'home'
   );
@@ -210,7 +212,8 @@ export default function App() {
     if (view === 'admin') {
       const isOwner =
         currentUser?.role === 'admin' &&
-        currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com';
+        (currentUser?.email?.toLowerCase() === 'kazottimahutondji@gmail.com' ||
+          currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com');
       if (!isOwner) {
         setIsFounderModalOpen(true);
         return;

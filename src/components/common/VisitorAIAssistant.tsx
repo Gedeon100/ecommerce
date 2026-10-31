@@ -13,6 +13,8 @@ import {
   RotateCcw,
   ExternalLink,
   ChevronDown,
+  GripVertical,
+  Move,
 } from 'lucide-react';
 
 interface VisitorAIAssistantProps {
@@ -70,11 +72,100 @@ export const VisitorAIAssistant: React.FC<VisitorAIAssistantProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Position déplaçable (par défaut au milieu de l'écran en bas)
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const buttonRef = useRef<HTMLDivElement | null>(null);
+  const dragStartRef = useRef<{
+    startX: number;
+    startY: number;
+    initX: number;
+    initY: number;
+    moved: boolean;
+  } | null>(null);
+
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isOpen]);
+
+  // Initialisation au milieu de l'écran
+  useEffect(() => {
+    const handleInitialCenter = () => {
+      if (typeof window !== 'undefined' && !position && buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect();
+        const initialX = Math.max(10, (window.innerWidth - rect.width) / 2);
+        // Au-dessus de la barre mobile de navigation (~70px)
+        const initialY = Math.max(10, window.innerHeight - (window.innerWidth < 768 ? 76 : 84));
+        setPosition({ x: initialX, y: initialY });
+      }
+    };
+    handleInitialCenter();
+  }, []);
+
+  // Gestion du glisser-déposer (Drag and drop) fluide tactile et souris
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const target = e.currentTarget;
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    const rect = buttonRef.current?.getBoundingClientRect();
+    const curX = rect ? rect.left : position?.x || (window.innerWidth - 150) / 2;
+    const curY = rect ? rect.top : position?.y || window.innerHeight - 80;
+
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: curX,
+      initY: curY,
+      moved: false,
+    };
+    setIsDragging(false);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    const dx = e.clientX - dragStartRef.current.startX;
+    const dy = e.clientY - dragStartRef.current.startY;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist > 5) {
+      dragStartRef.current.moved = true;
+      setIsDragging(true);
+
+      const rect = buttonRef.current?.getBoundingClientRect();
+      const btnW = rect ? rect.width : 140;
+      const btnH = rect ? rect.height : 46;
+
+      const newX = Math.max(8, Math.min(window.innerWidth - btnW - 8, dragStartRef.current.initX + dx));
+      const newY = Math.max(8, Math.min(window.innerHeight - btnH - 8, dragStartRef.current.initY + dy));
+
+      setPosition({ x: newX, y: newY });
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    const wasMoved = dragStartRef.current.moved;
+    dragStartRef.current = null;
+    setIsDragging(false);
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    // Si l'utilisateur n'a pas glissé (simple clic/tap), on ouvre/ferme
+    if (!wasMoved) {
+      setIsOpen((prev) => !prev);
+    }
+  };
 
   const handleSendMessage = async (userText: string) => {
     const textToSend = userText.trim();
@@ -157,29 +248,69 @@ export const VisitorAIAssistant: React.FC<VisitorAIAssistantProps> = ({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 print:hidden font-sans">
-      {/* Floating Trigger Button (when closed) */}
+    <>
+      {/* Floating Draggable Trigger Button (when closed) */}
       {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          className="group relative flex items-center gap-2.5 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 cursor-pointer border-2 border-white/30"
-          title="Ouvrir l'Assistant BéninMarket IA"
+        <div
+          ref={buttonRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={
+            position
+              ? {
+                  position: 'fixed',
+                  left: `${position.x}px`,
+                  top: `${position.y}px`,
+                  touchAction: 'none',
+                }
+              : {
+                  position: 'fixed',
+                  left: '50%',
+                  bottom: '72px',
+                  transform: 'translateX(-50%)',
+                  touchAction: 'none',
+                }
+          }
+          className={`z-50 print:hidden select-none cursor-grab active:cursor-grabbing transition-transform ${
+            isDragging ? 'scale-105 opacity-90 shadow-2xl' : 'hover:scale-102 shadow-xl'
+          }`}
+          title="Assistant IA (Glissez pour déplacer n'importe où sur l'écran)"
         >
-          <div className="relative">
-            <Sparkles className="w-5 h-5 text-amber-200 animate-pulse" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-amber-600"></span>
+          <div className="relative flex items-center gap-2 px-3 sm:px-3.5 py-2 sm:py-2.5 bg-gradient-to-r from-amber-600 via-amber-600 to-yellow-600 text-white rounded-full border-2 border-white/70 ring-2 ring-amber-500/30 backdrop-blur-xs">
+            {/* Grip handle */}
+            <div className="text-amber-200/80 -ml-1 flex items-center" title="Déplaçable">
+              <GripVertical className="w-3.5 h-3.5" />
+            </div>
+
+            {/* Sparkles with live indicator */}
+            <div className="relative">
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-200 animate-pulse" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full border border-amber-700 animate-ping"></span>
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full border border-amber-700"></span>
+            </div>
+
+            {/* Label */}
+            <div className="text-left pr-0.5">
+              <div className="text-xs font-black leading-none flex items-center gap-1">
+                <span>Assistant IA</span>
+                <span className="text-[9px] bg-slate-900/40 text-amber-200 px-1 py-0.2 rounded font-semibold hidden xs:inline">
+                  Bénin
+                </span>
+              </div>
+              <div className="text-[9px] text-amber-100 font-medium leading-tight mt-0.5 hidden xs:block">
+                Déplaçable · 24h/7
+              </div>
+            </div>
           </div>
-          <div className="text-left hidden xs:block">
-            <div className="text-xs font-bold leading-none">Assistant IA</div>
-            <div className="text-[10px] text-amber-200 font-medium">Une question ? Réponse 24/7</div>
-          </div>
-          <span className="text-xs font-bold xs:hidden">Aide IA</span>
-        </button>
+        </div>
       )}
 
-      {/* Expanded Chat Widget */}
+      {/* Expanded Chat Widget (Modal centré avec fond estompé) */}
       {isOpen && (
-        <div className="w-[92vw] sm:w-96 max-w-sm h-[520px] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/40 backdrop-blur-xs animate-in fade-in duration-200 print:hidden font-sans">
+          <div className="w-[94vw] sm:w-[420px] max-w-md h-[540px] max-h-[88vh] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
           {/* Header */}
           <div className="px-4 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
@@ -314,8 +445,9 @@ export const VisitorAIAssistant: React.FC<VisitorAIAssistantProps> = ({
               <Send className="w-4 h-4" />
             </button>
           </form>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

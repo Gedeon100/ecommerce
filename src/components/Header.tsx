@@ -85,7 +85,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isOwnerAdmin =
     currentUser?.role === 'admin' &&
-    currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com';
+    (currentUser?.email?.toLowerCase() === 'kazottimahutondji@gmail.com' ||
+      currentUser?.email?.toLowerCase() === 'kazottimahutondj@gmail.com');
   const isBuyerSpace = activeView !== 'seller' && activeView !== 'admin';
   const isSellerSpace = activeView === 'seller';
   const isAdminSpace = activeView === 'admin';
