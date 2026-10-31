@@ -56,6 +56,7 @@ import {
   Receipt,
   QrCode,
   FileCheck2,
+  LogOut,
 } from 'lucide-react';
 import { HighLoadMonitorModal } from '../common/HighLoadMonitorModal';
 import { AISalesCopyModal } from './AISalesCopyModal';
@@ -639,6 +640,17 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
             >
               <Plus className="w-4 h-4" />
               <span>Nouveau produit</span>
+            </button>
+            <button
+              onClick={() => {
+                storageService.logout();
+                window.location.reload();
+              }}
+              className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95 touch-manipulation"
+              title="Se déconnecter de la session vendeur"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Se déconnecter</span>
             </button>
           </div>
         </div>

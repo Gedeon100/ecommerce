@@ -107,12 +107,14 @@ export const Footer: React.FC<FooterProps> = ({
           </p>
           <div className="space-y-1.5 text-slate-400 text-[11px]">
             <div className="flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-amber-500" />
-              <span>Assistance : +229 97 00 11 22</span>
-            </div>
-            <div className="flex items-center gap-1.5">
               <Mail className="w-3.5 h-3.5 text-amber-500" />
-              <span>kgmservices229@gmail.com</span>
+              <a
+                href="mailto:kgmservices229@gmail.com"
+                className="hover:text-amber-400 transition-colors"
+                title="Écrire directement à kgmservices229@gmail.com"
+              >
+                kgmservices229@gmail.com
+              </a>
             </div>
             <div className="flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-amber-500" />
@@ -138,10 +140,17 @@ export const Footer: React.FC<FooterProps> = ({
             <li>
               <button
                 onClick={onNavigateHome}
-                className="text-white hover:text-amber-400 font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1.5 cursor-pointer text-left"
               >
-                <Home className="w-3.5 h-3.5 text-amber-500" />
-                <span>{t('nav.home')}</span>
+                <span>🛍️ Espace Acheteur (Commandes COD)</span>
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={onOpenSellerModal}
+                className="text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1.5 cursor-pointer text-left"
+              >
+                <span>🏪 Espace Vendeur (Ouvrir ma Boutique)</span>
               </button>
             </li>
             {onOpenPWAInstall && (

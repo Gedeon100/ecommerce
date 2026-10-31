@@ -13,20 +13,28 @@ const HOST = '0.0.0.0';
 
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize Google GenAI SDK (Server-Side Only)
-let ai: GoogleGenAI | null = null;
-if (process.env.GEMINI_API_KEY) {
+// Initialize Google GenAI SDK lazily (Server-Side Only)
+let cachedAi: GoogleGenAI | null = null;
+let cachedApiKey: string | undefined;
+
+function getAiClient(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  if (cachedAi && cachedApiKey === apiKey) return cachedAi;
   try {
-    ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
+    cachedAi = new GoogleGenAI({
+      apiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
         },
       },
     });
+    cachedApiKey = apiKey;
+    return cachedAi;
   } catch (err) {
     console.warn('[Server] Failed to initialize GoogleGenAI with provided key:', err);
+    return null;
   }
 }
 
@@ -105,6 +113,7 @@ Utilise la méthode AIDA + PAS :
 - Atouts clés : ${keyBenefits || 'Qualité supérieure testée, finitions soignées, haute durabilité'}
 - Public cible : ${targetAudience || 'Clients exigeants au Bénin'}`;
 
+    const ai = getAiClient();
     if (ai) {
       try {
         const response = await withTimeout(
@@ -210,6 +219,7 @@ app.post('/api/ai/product-pitch', async (req: Request, res: Response) => {
       return res.json({ success: true, data: cached, cached: true });
     }
 
+    const ai = getAiClient();
     if (ai) {
       try {
         const response = await withTimeout(
@@ -289,6 +299,7 @@ app.post('/api/ai/product-images', async (req: Request, res: Response) => {
     // Launch real web image search in parallel with bounded Gemini Google Search grounding for maximum speed
     const initialWebPhotosPromise = searchRealWebProductImages(baseQueries, productName, category);
 
+    const ai = getAiClient();
     if (ai) {
       try {
         const searchResponse = await withTimeout(
@@ -370,6 +381,7 @@ app.post('/api/ai/translate', async (req: Request, res: Response) => {
       return res.json({ success: true, data: cached, cached: true });
     }
 
+    const ai = getAiClient();
     if (ai) {
       try {
         const response = await withTimeout(
@@ -437,6 +449,7 @@ Tu rédiges des messages WhatsApp et Email courtois, chaleureux, ultra-personnal
 - Incitation choisie : ${incentive || 'rappel amical avec garantie de stock réservé'}
 Rappelle bien que le paiement s'effectue 100% à la livraison au livreur après réception du colis.`;
 
+    const ai = getAiClient();
     if (ai) {
       try {
         const response = await withTimeout(
@@ -495,6 +508,7 @@ app.post('/api/ai/visitor-assistant', async (req: Request, res: Response) => {
 3. PLATEFORME MULTILINGUE (10 langues) & INSTALLABLE en 1 clic sur téléphone et ordinateur.
 Sois chaleureux, persuasif, concis et structuré.`;
 
+    const ai = getAiClient();
     if (ai) {
       try {
         const response = await withTimeout(
@@ -907,6 +921,87 @@ function generateFallbackVisitorAnswer(q: string): string {
 }
 
 // ==========================================
+// API ROUTE: Customer & Seller Contact System (Directed to kgmservices229@gmail.com)
+// ==========================================
+interface ContactMessage {
+  id: string;
+  name: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  phone: string;
+  role?: string;
+  category: string;
+  orderReference?: string;
+  message: string;
+  createdAt: string;
+  targetEmail: string;
+  ccEmail: string;
+}
+
+const contactMessages: ContactMessage[] = [];
+
+app.post('/api/contact', (req: Request, res: Response) => {
+  try {
+    const { name, firstName, lastName, email, phone, role, category, orderReference, message } = req.body;
+
+    if (!email || !message) {
+      return res.status(400).json({ error: "L'adresse email et le message sont obligatoires." });
+    }
+
+    const fullName = name || `${firstName || ''} ${lastName || ''}`.trim() || 'Client BéninMarket';
+    const contactId = `MSG-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`;
+
+    const entry: ContactMessage = {
+      id: contactId,
+      name: fullName,
+      firstName,
+      lastName,
+      email: email.trim(),
+      phone: phone || '',
+      role: role || 'buyer',
+      category: category || 'Demande générale',
+      orderReference: orderReference || '',
+      message: message.trim(),
+      createdAt: new Date().toISOString(),
+      targetEmail: 'kgmservices229@gmail.com',
+      ccEmail: 'kazottimahutondj@gmail.com',
+    };
+
+    contactMessages.unshift(entry);
+    if (contactMessages.length > 200) contactMessages.pop();
+
+    console.log('======================================================');
+    console.log(`📧 [NOUVEAU MESSAGE ENREGISTRÉ ET ACHEMINÉ]`);
+    console.log(`Ticket ID: ${contactId}`);
+    console.log(`Destinataire officiel : kgmservices229@gmail.com`);
+    console.log(`Copie (CC) : kazottimahutondj@gmail.com`);
+    console.log(`Expéditeur : ${fullName} <${email}>`);
+    console.log(`Téléphone / WhatsApp : ${phone}`);
+    console.log(`Catégorie / Motif : ${category}`);
+    if (orderReference) console.log(`Référence Commande : ${orderReference}`);
+    console.log(`Message :\n${message}`);
+    console.log(`Date : ${entry.createdAt}`);
+    console.log('======================================================');
+
+    return res.json({
+      success: true,
+      ticketId: contactId,
+      message: "Votre message a été enregistré et transmis avec succès au responsable (kgmservices229@gmail.com).",
+      targetEmail: 'kgmservices229@gmail.com',
+      ccEmail: 'kazottimahutondj@gmail.com',
+    });
+  } catch (err: any) {
+    console.error('[Server] Contact endpoint error:', err);
+    return res.status(500).json({ error: "Erreur lors de l'enregistrement de votre message." });
+  }
+});
+
+app.get('/api/contact/messages', (_req: Request, res: Response) => {
+  return res.json({ success: true, count: contactMessages.length, messages: contactMessages });
+});
+
+// ==========================================
 // STATIC FILES & VITE MIDDLEWARE SETUP
 // ==========================================
 async function startServer() {
@@ -968,8 +1063,9 @@ async function startServer() {
         middlewareMode: true,
         host: '0.0.0.0',
         port: PORT,
-        hmr: false,
-        watch: null,
+        allowedHosts: true,
+        hmr: process.env.DISABLE_HMR !== 'true',
+        watch: process.env.DISABLE_HMR === 'true' ? null : {},
       },
       appType: 'spa',
     });

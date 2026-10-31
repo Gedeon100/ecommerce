@@ -28,16 +28,21 @@ export const CustomerServiceModal: React.FC<CustomerServiceModalProps> = ({
   const [message, setMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [ticketId, setTicketId] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
   const targetEmail = 'kgmservices229@gmail.com';
+  const ccEmail = 'kazottimahutondj@gmail.com';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lastName.trim() || !firstName.trim() || !whatsapp.trim() || !email.trim() || !message.trim()) {
       return;
     }
+
+    setIsSending(true);
 
     const fullSubject = orderReference.trim()
       ? `[BéninMarket Support] ${subjectCategory} - Commande ${orderReference.trim()}`
@@ -55,7 +60,7 @@ Message :
 ${message.trim()}
     `.trim();
 
-    // Save ticket in local storage database
+    // 1. Save ticket in local storage database
     const newTicket = storageService.createSupportTicket({
       senderName: `${firstName.trim()} ${lastName.trim().toUpperCase()}`,
       senderPhone: whatsapp.trim(),
@@ -66,7 +71,30 @@ ${message.trim()}
     });
 
     setTicketId(newTicket.id);
-    setIsSubmitted(true);
+
+    // 2. Transmit to server backend /api/contact
+    try {
+      await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim().toUpperCase(),
+          name: `${firstName.trim()} ${lastName.trim().toUpperCase()}`,
+          email: email.trim(),
+          phone: whatsapp.trim(),
+          role: userRole,
+          category: subjectCategory,
+          orderReference: orderReference.trim(),
+          message: message.trim(),
+        }),
+      });
+    } catch (err) {
+      console.warn('[CustomerService] Backend sync notice:', err);
+    } finally {
+      setIsSending(false);
+      setIsSubmitted(true);
+    }
   };
 
   const getMailtoUrl = () => {
@@ -75,21 +103,54 @@ ${message.trim()}
         ? `[BéninMarket Support] ${subjectCategory} - ${orderReference.trim()}`
         : `[BéninMarket Support] ${subjectCategory}`
     );
-    const body = encodeURIComponent(`Bonjour Responsable BéninMarket (kgmservices229@gmail.com),
+    const body = encodeURIComponent(`Bonjour Responsable BéninMarket (${targetEmail}),
 
 Nom : ${lastName.toUpperCase()}
 Prénom : ${firstName}
 Téléphone WhatsApp : ${whatsapp}
 Email : ${email}
 ${orderReference ? `Numéro de commande : ${orderReference}\n` : ''}
+Motif : ${subjectCategory}
+
 Message :
 ${message}
     `);
-    return `mailto:${targetEmail}?subject=${subject}&body=${body}`;
+    return `mailto:${targetEmail}?cc=${ccEmail}&subject=${subject}&body=${body}`;
   };
 
-  const cleanWhatsappNumber = (phone: string) => {
-    return phone.replace(/[^0-9]/g, '');
+  const getGmailUrl = () => {
+    const subject = encodeURIComponent(
+      orderReference.trim()
+        ? `[BéninMarket Support] ${subjectCategory} - ${orderReference.trim()}`
+        : `[BéninMarket Support] ${subjectCategory}`
+    );
+    const body = encodeURIComponent(`Bonjour Responsable BéninMarket (${targetEmail}),
+
+Nom : ${lastName.toUpperCase()}
+Prénom : ${firstName}
+Téléphone WhatsApp : ${whatsapp}
+Email : ${email}
+${orderReference ? `Numéro de commande : ${orderReference}\n` : ''}
+Motif : ${subjectCategory}
+
+Message :
+${message}
+    `);
+    return `https://mail.google.com/mail/?view=cm&fs=1&to=${targetEmail}&cc=${ccEmail}&su=${subject}&body=${body}`;
+  };
+
+  const getWhatsAppSupportUrl = () => {
+    const text = encodeURIComponent(
+      `Bonjour Pasteur Kazotti / Direction BéninMarket 👋\n\nJ'ai soumis le ticket support *${ticketId}* (${subjectCategory}).\n\nNom: ${firstName} ${lastName.toUpperCase()}\nEmail: ${email}\n${orderReference ? `Commande: ${orderReference}\n` : ''}Message: ${message.slice(0, 150)}...`
+    );
+    return `https://wa.me/22997001122?text=${text}`;
+  };
+
+  const handleCopyMessage = () => {
+    const fullText = `Destinataire: ${targetEmail}\nTicket: ${ticketId}\nExpéditeur: ${firstName} ${lastName}\nWhatsApp: ${whatsapp}\nEmail: ${email}\nObjet: ${subjectCategory}\n\n${message}`;
+    navigator.clipboard?.writeText(fullText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   return (
@@ -106,7 +167,7 @@ ${message}
                 Service Clientèle & Contact Responsable
               </h2>
               <p className="text-[11px] text-slate-300">
-                Direction du site : <strong className="text-amber-400 font-semibold">{targetEmail}</strong>
+                Email officiel : <strong className="text-amber-400 font-semibold">{targetEmail}</strong>
               </p>
             </div>
           </div>
@@ -120,17 +181,17 @@ ${message}
 
         {/* Content */}
         {isSubmitted ? (
-          <div className="p-8 text-center space-y-5 text-xs">
+          <div className="p-6 sm:p-8 text-center space-y-4 text-xs">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto shadow-xs">
               <CheckCircle2 className="w-8 h-8" />
             </div>
 
             <div>
               <h3 className="text-lg font-bold text-slate-900 mb-1">
-                Message envoyé avec succès au responsable !
+                Message enregistré & transmis à la direction !
               </h3>
               <p className="text-slate-600 max-w-md mx-auto leading-relaxed text-xs">
-                Votre requête a été transmise à l'adresse officielle de la direction{' '}
+                Votre requête a été envoyée à l'adresse officielle du responsable{' '}
                 <strong className="text-slate-900 font-bold">{targetEmail}</strong> sous le numéro de ticket{' '}
                 <span className="font-mono font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                   {ticketId}
@@ -138,30 +199,49 @@ ${message}
               </p>
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-left max-w-md mx-auto space-y-2">
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-left max-w-md mx-auto space-y-1.5">
               <div className="font-semibold text-slate-800 flex items-center gap-1.5 text-[11px]">
                 <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Prise en charge prioritaire</span>
+                <span>Prise en charge directe par le responsable</span>
               </div>
               <p className="text-slate-600 text-[11px] leading-relaxed">
-                Notre équipe examine chaque message et vous répondra directement par e-mail ou par message WhatsApp au{' '}
+                Le responsable reçoit vos messages à <strong>{targetEmail}</strong> (avec copie à {ccEmail}) et vous répondra directement par e-mail ou WhatsApp au{' '}
                 <strong>{whatsapp}</strong>.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            {/* Direct 1-tap Actions for Android / iPhone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-md mx-auto pt-2">
               <a
                 href={getMailtoUrl()}
-                className="w-full sm:w-auto px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="w-full px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer text-xs"
               >
-                <Mail className="w-4 h-4" />
-                <span>Ouvrir dans mon application mail</span>
+                <Mail className="w-4 h-4 shrink-0" />
+                <span>Ouvrir Mail (Android / iOS)</span>
+              </a>
+              <a
+                href={getGmailUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer text-xs"
+              >
+                <Mail className="w-4 h-4 shrink-0" />
+                <span>Ouvrir dans Gmail</span>
               </a>
               <button
-                onClick={onClose}
-                className="w-full sm:w-auto px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors cursor-pointer"
+                onClick={handleCopyMessage}
+                className="w-full sm:col-span-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer text-xs"
               >
-                Retourner sur le site
+                <span>{copied ? '✓ Copié dans le presse-papier' : 'Copier le texte du message'}</span>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <button
+                onClick={onClose}
+                className="px-6 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs"
+              >
+                Fermer
               </button>
             </div>
           </div>

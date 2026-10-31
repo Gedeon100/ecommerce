@@ -51,6 +51,17 @@ import {
   Package,
   Activity,
   Zap,
+  ShoppingBag,
+  ChevronDown,
+  X,
+  LogOut,
+  Mail,
+  Flame,
+  Clock,
+  BadgePercent,
+  ThumbsUp,
+  Shield,
+  Layers,
 } from 'lucide-react';
 
 export default function App() {
@@ -73,6 +84,10 @@ export default function App() {
   const [sellerActiveTab, setSellerActiveTab] = useState<'overview' | 'products' | 'orders' | 'abandoned_carts' | 'promotions' | 'settings'>('overview');
   const [isSellerBoundaryModalOpen, setIsSellerBoundaryModalOpen] = useState(false);
   const [activeStoreSlug, setActiveStoreSlug] = useState<string>('danxome-creations');
+
+  // Foreground Dedicated Menus for Buyer and Seller Spaces
+  const [isBuyerMenuOpen, setIsBuyerMenuOpen] = useState(false);
+  const [isSellerMenuOpen, setIsSellerMenuOpen] = useState(false);
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -359,291 +374,793 @@ export default function App() {
         }}
       />
 
+      {/* SECTION PREMIER PLAN : BOUTONS ESPACE ACHETEUR & ESPACE VENDEUR CÔTE À CÔTE (TAILLE RÉDUITE & FORMAT ERGONOMIQUE ANDROID/IPHONE - FOND BLANC) */}
+      <section className="relative z-30 bg-white border-b border-slate-200/90 shadow-2xs py-2 px-2.5 sm:px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 items-stretch">
+            {/* 1. BOUTON ESPACE ACHETEUR (Taille compacte, Vert Émeraude Officiel avec icône panier et menu dédié) */}
+            <div className="relative">
+              <div
+                className={`w-full h-full rounded-xl p-2 sm:p-2.5 text-left transition-all duration-200 select-none touch-manipulation cursor-pointer flex flex-col justify-between ${
+                  currentView === 'home' || currentView === 'categories'
+                    ? 'bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white border-2 border-emerald-300 shadow-md ring-1 ring-emerald-400/40'
+                    : 'bg-gradient-to-br from-emerald-700/90 to-teal-900 text-white border-2 border-emerald-500/80 shadow-xs hover:border-emerald-300'
+                }`}
+                onClick={() => {
+                  handleNavigate('home');
+                  const el = document.getElementById('catalogue');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                <div className="flex items-start justify-between gap-1 sm:gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/20 backdrop-blur-xs border border-white/30 flex items-center justify-center text-white shrink-0 shadow-2xs">
+                      <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="text-[8px] sm:text-[9px] font-black tracking-wider uppercase text-emerald-200">
+                          Officiel
+                        </span>
+                        <span className="inline-flex items-center px-1 py-0.1 rounded text-[8px] font-bold bg-emerald-950/60 text-emerald-300 border border-emerald-400/30">
+                          COD
+                        </span>
+                      </div>
+                      <h2 className="text-xs sm:text-sm font-extrabold text-white leading-tight truncate">
+                        Espace Acheteur
+                      </h2>
+                    </div>
+                  </div>
+
+                  {/* Bouton Menu Dédié */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsBuyerMenuOpen(!isBuyerMenuOpen);
+                      setIsSellerMenuOpen(false);
+                    }}
+                    className="p-1 sm:px-1.5 sm:py-0.5 bg-black/30 hover:bg-black/50 text-emerald-100 rounded-md border border-white/20 transition-colors flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold shrink-0 cursor-pointer active:scale-95"
+                    title="Menu Acheteur"
+                  >
+                    <span className="hidden sm:inline">Menu</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${isBuyerMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                <div className="mt-1 pt-1 border-t border-white/15 flex items-center justify-between text-[9px] sm:text-[10px] text-emerald-100 font-medium">
+                  <span className="truncate">Paiement à livraison</span>
+                  <span className="font-bold text-white shrink-0 ml-1">0F en ligne</span>
+                </div>
+              </div>
+
+              {/* Menu Dédié Acheteur Popup */}
+              {isBuyerMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
+                    onClick={() => setIsBuyerMenuOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-1.5 w-72 sm:w-80 bg-slate-900 border-2 border-emerald-400 text-white rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                          <ShoppingBag className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-xs font-black uppercase text-emerald-400">Menu Espace Acheteur</span>
+                      </div>
+                      <button
+                        onClick={() => setIsBuyerMenuOpen(false)}
+                        className="text-slate-400 hover:text-white p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="py-2 space-y-1 text-xs">
+                      <button
+                        onClick={() => {
+                          handleNavigate('categories');
+                          setIsBuyerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-950/60 hover:text-emerald-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Package className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Explorer tout le catalogue COD</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsTrackingOpen(true);
+                          setIsBuyerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-950/60 hover:text-emerald-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Suivre mon colis en direct</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsCartOpen(true);
+                          setIsBuyerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-950/60 hover:text-emerald-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <ShoppingBag className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Voir mon panier ({cart.length})</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (currentUser) {
+                            handleNavigate('customer');
+                          } else {
+                            setAuthModalMode('register_buyer');
+                            setIsAuthModalOpen(true);
+                          }
+                          setIsBuyerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-950/60 hover:text-emerald-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Mon compte & Historique commandes</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsCustomerServiceOpen(true);
+                          setIsBuyerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-emerald-950/60 hover:text-emerald-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Mail className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>Service client & Réclamations</span>
+                      </button>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800 text-[10px] text-emerald-200/80 bg-emerald-950/40 p-2 rounded-xl">
+                      🛡️ <strong>Garantie Zéro Risque :</strong> Aucun paiement bancaire en ligne, vous inspectez le colis avant de régler au livreur.
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 2. BOUTON ESPACE VENDEUR (Taille compacte, Ambre doré brillant avec badge d'accès boutique « 0 frais » / « Vendre ») */}
+            <div className="relative">
+              <div
+                className={`w-full h-full rounded-xl p-2 sm:p-2.5 text-left transition-all duration-200 select-none touch-manipulation cursor-pointer flex flex-col justify-between ${
+                  currentView === 'seller'
+                    ? 'bg-gradient-to-br from-amber-400 via-amber-500 to-yellow-500 text-slate-950 font-black border-2 border-amber-200 shadow-md ring-1 ring-amber-400/50'
+                    : 'bg-gradient-to-br from-amber-500 via-amber-400 to-yellow-500 text-slate-950 font-bold border-2 border-amber-300 shadow-xs hover:border-amber-200'
+                }`}
+                onClick={() => {
+                  if (currentUser?.role === 'seller') {
+                    handleNavigate('seller');
+                  } else {
+                    setAuthModalMode('register_seller');
+                    setIsAuthModalOpen(true);
+                  }
+                }}
+              >
+                <div className="flex items-start justify-between gap-1 sm:gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-950 text-amber-400 border border-amber-300/40 flex items-center justify-center shrink-0 shadow-2xs">
+                      <StoreIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {/* Badge officiel d'accès boutique « 0 frais » / « Vendre » */}
+                        <span className="inline-flex items-center px-1 sm:px-1.5 py-0.1 rounded text-[8px] sm:text-[9px] font-black bg-slate-950 text-amber-300 border border-amber-400/60 shadow-2xs">
+                          « 0 frais » / « Vendre »
+                        </span>
+                      </div>
+                      <h2 className="text-xs sm:text-sm font-black text-slate-950 leading-tight truncate">
+                        Espace Vendeur
+                      </h2>
+                    </div>
+                  </div>
+
+                  {/* Bouton Menu Dédié */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsSellerMenuOpen(!isSellerMenuOpen);
+                      setIsBuyerMenuOpen(false);
+                    }}
+                    className="p-1 sm:px-1.5 sm:py-0.5 bg-slate-950/25 hover:bg-slate-950/40 text-slate-950 rounded-md border border-slate-950/30 transition-colors flex items-center gap-0.5 text-[9px] sm:text-[10px] font-black shrink-0 cursor-pointer active:scale-95"
+                    title="Menu Vendeur"
+                  >
+                    <span className="hidden sm:inline">Menu</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${isSellerMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                <div className="mt-1 pt-1 border-t border-slate-950/20 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-950 font-bold">
+                  <span className="truncate">Boutique gratuite 2 min</span>
+                  <span className="bg-slate-950 text-amber-400 px-1 py-0.1 rounded font-black shrink-0 ml-1">
+                    0% com.
+                  </span>
+                </div>
+              </div>
+
+              {/* Menu Dédié Vendeur Popup */}
+              {isSellerMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
+                    onClick={() => setIsSellerMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1.5 w-72 sm:w-80 bg-slate-900 border-2 border-amber-400 text-white rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                          <StoreIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-xs font-black uppercase text-amber-400">Menu Espace Vendeur</span>
+                      </div>
+                      <button
+                        onClick={() => setIsSellerMenuOpen(false)}
+                        className="text-slate-400 hover:text-white p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="py-2 space-y-1 text-xs">
+                      <button
+                        onClick={() => {
+                          setAuthModalMode('register_seller');
+                          setIsAuthModalOpen(true);
+                          setIsSellerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-950/60 hover:text-amber-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Ouvrir ma boutique gratuite (0 frais)</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (currentUser?.role === 'seller') {
+                            handleNavigate('seller');
+                          } else {
+                            setAuthModalMode('login');
+                            setIsAuthModalOpen(true);
+                          }
+                          setIsSellerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-950/60 hover:text-amber-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Activity className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Mon tableau de bord marchand</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (currentUser?.role === 'seller') {
+                            setSellerActiveTab('orders');
+                            handleNavigate('seller');
+                          } else {
+                            setAuthModalMode('login');
+                            setIsAuthModalOpen(true);
+                          }
+                          setIsSellerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-950/60 hover:text-amber-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Package className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Commandes reçues & Expéditions COD</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (currentUser?.role === 'seller') {
+                            setSellerActiveTab('products');
+                            handleNavigate('seller');
+                          } else {
+                            setAuthModalMode('login');
+                            setIsAuthModalOpen(true);
+                          }
+                          setIsSellerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-950/60 hover:text-amber-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Créateur IA Page de vente & Affiches</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setIsCustomerServiceOpen(true);
+                          setIsSellerMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl hover:bg-amber-950/60 hover:text-amber-300 font-bold flex items-center gap-2 transition cursor-pointer"
+                      >
+                        <Mail className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>Assistance & Support vendeurs</span>
+                      </button>
+
+                      {/* Direct Logout Option for connected sellers */}
+                      {currentUser?.role === 'seller' && (
+                        <button
+                          onClick={() => {
+                            storageService.logout();
+                            setCurrentUser(null);
+                            handleNavigate('home');
+                            setIsSellerMenuOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl bg-rose-950/50 hover:bg-rose-900/70 text-rose-300 font-bold flex items-center gap-2 transition cursor-pointer mt-1 border border-rose-800/40 active:scale-95"
+                        >
+                          <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
+                          <span>Se déconnecter de la boutique</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800 text-[10px] text-amber-200/90 bg-amber-950/40 p-2 rounded-xl">
+                      ⚡ <strong>Formule 0 Frais :</strong> Vous encaissez directement vos fonds auprès des clients ou livreurs COD.
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Main View Switcher - pb-20 on mobile prevents bottom navigation overlap */}
       <main className="flex-1 w-full max-w-full overflow-x-hidden pb-20 md:pb-0">
-        {/* VIEW 1: HOME */}
+        {/* VIEW 1: HOME - ALIBABA PRESENTATION SUR FOND BLANC */}
         {currentView === 'home' && (
-          <div>
-            {/* Hero Section: African E-Commerce & Cash on Delivery focus */}
-            <section className="relative bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white overflow-hidden py-12 md:py-16">
-              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#d97706_1px,transparent_1px)] [background-size:16px_16px]" />
-              
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                <div className="lg:col-span-7 space-y-6">
-                  {/* Official BéninMarket Brand Emblem + Live Stats */}
-                  <div className="flex flex-wrap items-center gap-3.5">
-                    <div className="bg-white rounded-2xl p-1.5 shadow-xl border-2 border-amber-400/50 shrink-0">
-                      <img
-                        src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
-                        alt="Logo Officiel BéninMarket"
-                        className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl"
-                      />
-                    </div>
-                    <div className="inline-flex flex-wrap items-center gap-2 bg-gradient-to-r from-amber-500/20 via-emerald-500/15 to-amber-500/20 border border-amber-400/40 text-amber-200 px-4 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg">
-                      <span className="flex h-2.5 w-2.5 relative">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
-                      </span>
-                      <span className="text-white">{t('hero.statsUsers')}</span>
-                      <span className="text-amber-400 font-normal">·</span>
-                      <span className="text-amber-300">{t('hero.statsOrders')}</span>
-                    </div>
-                  </div>
-
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight text-white font-display">
-                    {t('hero.title')}
-                  </h1>
-
-                  <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl">
-                    {t('hero.subtitle')}
-                  </p>
-
-                  {/* Reassurance Feature Highlights */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
-                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                      <span>{t('hero.zeroFee')}</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
-                      <Truck className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{t('hero.homeDelivery')}</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 p-2.5 rounded-lg">
-                      <StoreIcon className="w-3.5 h-3.5 text-amber-400" />
-                      <span>{t('hero.verifiedStores')}</span>
+          <div className="bg-white">
+            {/* 1. TOP QUICK SOURCING BAR: Uniquement Catégories et Villes avec sélection déroulante */}
+            <section className="bg-white border-b border-slate-200/90 py-2.5 sticky top-0 z-20 backdrop-blur-md bg-white/95">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6">
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 items-center">
+                  {/* Select 1: Catégories */}
+                  <div className="relative">
+                    <label htmlFor="category-select" className="sr-only">Sélectionner une catégorie</label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-2.5 sm:left-3 pointer-events-none text-amber-600 flex items-center">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <select
+                        id="category-select"
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all appearance-none cursor-pointer truncate shadow-2xs"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {translateCategory(cat)}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-2.5 sm:right-3 pointer-events-none text-slate-400 flex items-center">
+                        <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </div>
                     </div>
                   </div>
 
-                  {/* CTAs */}
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <a
-                      href="#catalogue"
-                      className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-lg hover:shadow-xl inline-flex items-center gap-2 cursor-pointer"
-                    >
-                      <span>{t('hero.exploreBtn')}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </a>
-                    <button
-                      onClick={() => {
-                        setAuthModalMode('register_seller');
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="px-5 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl text-xs sm:text-sm border border-white/20 transition-colors inline-flex items-center gap-2 cursor-pointer"
-                    >
-                      <StoreIcon className="w-4 h-4 text-amber-400" />
-                      <span>{t('hero.createStoreBtn')}</span>
-                    </button>
+                  {/* Select 2: Villes du Bénin */}
+                  <div className="relative">
+                    <label htmlFor="city-select" className="sr-only">Sélectionner une ville</label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-2.5 sm:left-3 pointer-events-none text-emerald-600 flex items-center">
+                        <MapPin className="w-4 h-4" />
+                      </div>
+                      <select
+                        id="city-select"
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                        className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 rounded-xl text-xs sm:text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all appearance-none cursor-pointer truncate shadow-2xs"
+                      >
+                        {BENIN_CITIES.map((city) => (
+                          <option key={city} value={city}>
+                            {city === 'Toutes les villes' ? t('filter.allCities') : city}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-2.5 sm:right-3 pointer-events-none text-slate-400 flex items-center">
+                        <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Hero Showcase Card */}
-                <div className="lg:col-span-5">
-                  <div className="bg-white/10 backdrop-blur-md border border-white/15 p-5 rounded-2xl shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between text-xs text-slate-300 pb-3 border-b border-white/10">
-                      <span className="font-semibold text-amber-400">{t('hero.featuredToday')}</span>
-                      <span>{t('hero.payOnReceipt')}</span>
+                {/* Filtres actifs si sélection non par défaut */}
+                {(selectedCategory !== 'Toutes les catégories' || selectedCity !== 'Toutes les villes') && (
+                  <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-slate-600 flex-wrap">
+                      <span className="font-semibold text-slate-400">Filtré par :</span>
+                      {selectedCategory !== 'Toutes les catégories' && (
+                        <span className="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded-md">
+                          {translateCategory(selectedCategory)}
+                        </span>
+                      )}
+                      {selectedCity !== 'Toutes les villes' && (
+                        <span className="bg-emerald-100 text-emerald-900 font-bold px-2 py-0.5 rounded-md">
+                          {selectedCity}
+                        </span>
+                      )}
                     </div>
-
-                    <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-800">
-                      <img
-                        src="https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80"
-                        alt="Blazer Royal Wax"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded">
-                        -20% Promotion
-                      </div>
-                      <div className="absolute bottom-3 left-3 right-3 bg-slate-900/90 backdrop-blur-xs p-3 rounded-xl border border-white/10 text-xs">
-                        <div className="text-[10px] text-amber-400 uppercase tracking-wider font-semibold">
-                          Danxomè Créations · Cotonou
-                        </div>
-                        <div className="font-bold text-white text-sm">Blazer Royal Wax & Revers Soie</div>
-                        <div className="flex justify-between items-baseline mt-1">
-                          <span className="text-base font-extrabold text-amber-400 tabular-nums">28 000 FCFA</span>
-                          <span className="text-xs text-slate-400 line-through tabular-nums">35 000 FCFA</span>
-                        </div>
-                      </div>
-                    </div>
-
                     <button
                       onClick={() => {
-                        const prod = products.find((p) => p.id === 'prod-wax-blazer');
-                        if (prod) setSelectedProduct(prod);
+                        setSelectedCategory('Toutes les catégories');
+                        setSelectedCity('Toutes les villes');
                       }}
-                      className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer text-center block"
+                      className="text-[10px] text-amber-700 hover:underline font-bold cursor-pointer shrink-0 ml-2"
                     >
-                      {t('hero.orderCodBtn')}
+                      Réinitialiser
                     </button>
                   </div>
-                </div>
+                )}
               </div>
             </section>
 
-            {/* Category & Location Selector Bar */}
-            <section className="bg-white border-b border-slate-200 py-3.5 space-y-3">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                {/* Categories */}
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                        selectedCategory === cat
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {translateCategory(cat)}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Cities / Locations Filter */}
-                <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-slate-100 scrollbar-none">
-                  <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1 shrink-0">
-                    <MapPin className="w-3.5 h-3.5 text-amber-600" />
-                    <span>{t('filter.locations')}</span>
-                  </span>
-                  {BENIN_CITIES.map((city) => {
-                    const isSelected = selectedCity === city;
-                    return (
-                      <button
-                        key={city}
-                        onClick={() => setSelectedCity(city)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer ${
-                          isSelected
-                            ? 'bg-slate-900 text-white font-bold'
-                            : 'bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        {city === 'Toutes les villes' ? t('filter.allCities') : city}
-                      </button>
-                    );
-                  })}
-                  {selectedCity !== 'Toutes les villes' && (
-                    <button
-                      onClick={() => setSelectedCity('Toutes les villes')}
-                      className="text-[10px] text-amber-700 hover:underline font-semibold ml-1 shrink-0 cursor-pointer"
-                    >
-                      {t('filter.resetCity')}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Video Demonstration Spotlight Section */}
-            {videoProducts.length > 0 && (
-              <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 uppercase tracking-wider">
-                      <Video className="w-4 h-4 text-amber-600" />
-                      <span>Vidéos Démonstratives</span>
-                    </div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-                      Découvrez les produits en action
-                    </h2>
-                  </div>
-                  <span className="text-xs text-slate-500 hidden sm:inline">
-                    Vérifiez la qualité réelle avant de commander
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {videoProducts.slice(0, 3).map((vp) => {
-                    const st = stores.find((s) => s.id === vp.storeId);
-                    return (
-                      <div
-                        key={vp.id}
-                        onClick={() => setSelectedProduct(vp)}
-                        className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
-                      >
-                        <div className="relative aspect-16/9 bg-slate-900 overflow-hidden">
+            {/* 2. ALIBABA MASTER MARKETPLACE HERO BANNER (FOND BLANC PROFESSIONNEL) */}
+            <section className="bg-gradient-to-b from-slate-50/80 via-white to-white py-6 sm:py-10 border-b border-slate-200/80">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6">
+                <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-sm p-4 sm:p-7 lg:p-9 overflow-hidden">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-center">
+                    
+                    {/* Left Column: Présentation Marketplace & Garanties */}
+                    <div className="lg:col-span-7 space-y-4 sm:space-y-5">
+                      {/* Logo Officiel BéninMarket + Badge Confiance */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="bg-white rounded-xl p-1 shadow-xs border border-amber-300 shrink-0">
                           <img
-                            src={vp.images[0]}
-                            alt={vp.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+                            src="/assets/aistudio/Logo_B_nin_Market_aux_couleurs_du_B_nin__1__cf490afb.png"
+                            alt="Logo BéninMarket"
+                            className="w-12 h-12 sm:w-16 sm:h-16 object-contain rounded-lg"
                           />
-                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                            <div className="w-12 h-12 rounded-full bg-amber-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                              <Video className="w-6 h-6 ml-0.5 fill-white" />
+                        </div>
+                        <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-900 px-3 py-1.5 rounded-full text-xs font-bold shadow-2xs">
+                          <span className="flex h-2 w-2 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                          </span>
+                          <span>🇧🇯 N°1 Marketplace COD au Bénin</span>
+                          <span className="text-emerald-400 font-normal">·</span>
+                          <span className="text-emerald-700 font-extrabold">+12 800 clients livrés</span>
+                        </div>
+                      </div>
+
+                      {/* Titre Principal Alibaba-style */}
+                      <div className="space-y-2">
+                        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight font-display">
+                          Achetez en direct des boutiques du Bénin, <span className="text-amber-600">payez à la livraison</span>
+                        </h1>
+                        <p className="text-xs sm:text-base text-slate-600 leading-relaxed max-w-xl">
+                          Commandez en 1 clic sans carte bancaire : ouvrez et inspectez votre colis en mains propres avec le livreur, puis réglez en <strong>espèces</strong> ou par <strong>Mobile Money (MTN / Moov)</strong>.
+                        </p>
+                      </div>
+
+                      {/* 3 Badges de réassurance immédiate */}
+                      <div className="grid grid-cols-3 gap-2 pt-1 text-slate-700">
+                        <div className="bg-slate-50 border border-slate-200/80 p-2 sm:p-2.5 rounded-xl text-center">
+                          <span className="block text-xs sm:text-sm font-black text-emerald-600">0 FCFA</span>
+                          <span className="text-[10px] sm:text-xs text-slate-500 font-medium">À l'avance</span>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200/80 p-2 sm:p-2.5 rounded-xl text-center">
+                          <span className="block text-xs sm:text-sm font-black text-amber-600">100% COD</span>
+                          <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Inspection libre</span>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200/80 p-2 sm:p-2.5 rounded-xl text-center">
+                          <span className="block text-xs sm:text-sm font-black text-slate-800">24h / 48h</span>
+                          <span className="text-[10px] sm:text-xs text-slate-500 font-medium">Livraison Bénin</span>
+                        </div>
+                      </div>
+
+                      {/* Boutons d'Action Alibaba */}
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 pt-2">
+                        <a
+                          href="#catalogue"
+                          className="px-5 sm:px-6 py-2.5 sm:py-3 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl text-xs sm:text-sm transition-all shadow-sm hover:shadow-md inline-flex items-center gap-2 cursor-pointer active:scale-98"
+                        >
+                          <ShoppingBag className="w-4 h-4" />
+                          <span>Explorer les offres COD</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </a>
+                        <button
+                          onClick={() => {
+                            setAuthModalMode('register_seller');
+                            setIsAuthModalOpen(true);
+                          }}
+                          className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white hover:bg-slate-50 text-slate-800 font-bold rounded-xl text-xs sm:text-sm border-2 border-emerald-600 transition-colors inline-flex items-center gap-2 cursor-pointer shadow-2xs active:scale-98"
+                        >
+                          <StoreIcon className="w-4 h-4 text-emerald-600" />
+                          <span>Ouvrir ma boutique gratuite (0%)</span>
+                        </button>
+                        <button
+                          onClick={() => setIsTrackingOpen(true)}
+                          className="px-3.5 py-2.5 sm:py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Truck className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Suivre un colis</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Alibaba Super Deal Card (Offre Vedette COD) */}
+                    <div className="lg:col-span-5">
+                      <div className="bg-slate-50 border-2 border-amber-300/80 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 relative overflow-hidden">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs">
+                          <span className="font-black text-amber-700 uppercase flex items-center gap-1">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Super Deal du Jour</span>
+                          </span>
+                          <span className="bg-emerald-100 text-emerald-900 font-bold text-[10px] px-2 py-0.5 rounded-full">
+                            Paiement à la réception
+                          </span>
+                        </div>
+
+                        {/* Image produit & Badge Promo */}
+                        <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-200 border border-slate-200">
+                          <img
+                            src="https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80"
+                            alt="Blazer Royal Wax"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2.5 left-2.5 bg-rose-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-xs">
+                            -20% PROMO
+                          </div>
+                          <div className="absolute top-2.5 right-2.5 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                            Danxomè Créations · Cotonou
+                          </div>
+                          <div className="absolute bottom-2.5 left-2.5 right-2.5 bg-white/95 backdrop-blur-xs p-2.5 rounded-xl border border-slate-200/80 shadow-xs">
+                            <div className="font-extrabold text-slate-900 text-sm truncate">
+                              Blazer Royal Wax & Revers Soie
+                            </div>
+                            <div className="flex justify-between items-baseline mt-1">
+                              <span className="text-base sm:text-lg font-black text-amber-600 tabular-nums">
+                                28 000 FCFA
+                              </span>
+                              <span className="text-xs text-slate-400 line-through tabular-nums">
+                                35 000 FCFA
+                              </span>
                             </div>
                           </div>
-                          <span className="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-medium">
-                            Voir la vidéo
-                          </span>
                         </div>
 
-                        <div className="p-4">
-                          <span className="text-[10px] font-bold text-amber-800 uppercase">
-                            {st?.name}
-                          </span>
-                          <h3 className="font-bold text-slate-900 text-sm line-clamp-1 mt-0.5">
-                            {vp.name}
-                          </h3>
-                          <div className="flex justify-between items-baseline mt-2 pt-2 border-t border-slate-100">
-                            <span className="font-extrabold text-slate-900 tabular-nums text-sm">
-                              {formatFCFA(vp.isPromoActive && vp.promoPrice ? vp.promoPrice : vp.price)}
-                            </span>
-                            <span className="text-xs font-semibold text-amber-700 group-hover:underline">
-                              Commander &gt;
-                            </span>
-                          </div>
-                        </div>
+                        {/* Bouton de Commande Directe COD */}
+                        <button
+                          onClick={() => {
+                            const prod = products.find((p) => p.id === 'prod-wax-blazer');
+                            if (prod) setSelectedProduct(prod);
+                          }}
+                          className="w-full py-3 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-black text-xs sm:text-sm rounded-xl transition-all shadow-xs cursor-pointer text-center block active:scale-98"
+                        >
+                          Commander en 1 Clic (0F d'avance)
+                        </button>
                       </div>
-                    );
-                  })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 3. ALIBABA 4 TRUST PILLARS (GARANTIES ACHETEUR & VENDEUR SUR FOND BLANC) */}
+            <section className="bg-white border-b border-slate-200/80 py-5 sm:py-8">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                  {/* Pilier 1 */}
+                  <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-xl transition-all flex items-start gap-2.5 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 font-black text-sm">
+                      💵
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                        0 FCFA à l'avance
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-snug">
+                        Paiement 100% à la livraison en espèces ou Mobile Money (MTN / Moov).
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Pilier 2 */}
+                  <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-xl transition-all flex items-start gap-2.5 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-black text-sm">
+                      🔍
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                        Inspection libre
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-snug">
+                        Déballez et examinez la qualité du colis avec le livreur avant de régler.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Pilier 3 */}
+                  <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-xl transition-all flex items-start gap-2.5 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 font-black text-sm">
+                      ⚡
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                        Livraison 24h / 48h
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-snug">
+                        Expédition rapide à domicile ou au bureau dans toutes les villes du Bénin.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Pilier 4 */}
+                  <div className="bg-slate-50/80 hover:bg-slate-50 border border-slate-200/80 p-3 sm:p-4 rounded-xl transition-all flex items-start gap-2.5 sm:gap-3">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center shrink-0 font-black text-sm">
+                      🛡️
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-xs sm:text-sm leading-tight">
+                        Vendeurs Certifiés
+                      </h3>
+                      <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-snug">
+                        Boutiques locales authentifiées, contacts directs et assistance réactive.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 4. ALIBABA FLASH DEALS : VENTES FLASH & SUPER PROMOTIONS COD */}
+            {promoProducts.length > 0 && (
+              <section className="bg-white border-b border-slate-200/80 py-7 sm:py-10">
+                <div className="max-w-7xl mx-auto px-3 sm:px-6">
+                  {/* Header Ventes Flash avec Compte à Rebours */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                        <Flame className="w-5 h-5 fill-rose-600" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-lg sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
+                            Ventes Flash & Super Promos
+                          </h2>
+                          <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                            COD
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Remises exceptionnelles valables uniquement aujourd'hui avec paiement à la livraison
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Timer Alibaba Indicatif */}
+                    <div className="flex items-center gap-2 bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 self-start sm:self-auto">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-[11px] text-slate-300">Offre du jour expire dans :</span>
+                      <span className="font-mono text-amber-400 tracking-wider">07:42:15</span>
+                    </div>
+                  </div>
+
+                  {/* Grille Flash Deals Alibaba (2 colonnes mobile, 4 colonnes desktop) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                    {promoProducts.slice(0, 4).map((p) => {
+                      const st = stores.find((s) => s.id === p.storeId);
+                      const discount = calculateDiscountPercent(p.price, p.promoPrice || p.price);
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => setSelectedProduct(p)}
+                          className="group bg-white rounded-2xl border border-slate-200/90 hover:border-amber-400 p-2.5 sm:p-3 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                        >
+                          <div>
+                            {/* Image avec Badge Promo */}
+                            <div className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 mb-2.5">
+                              <img
+                                src={p.images[0]}
+                                alt={p.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              <span className="absolute top-2 left-2 bg-rose-600 text-white font-black text-[10px] px-2 py-0.5 rounded shadow-xs">
+                                -{discount}%
+                              </span>
+                              <span className="absolute bottom-2 left-2 right-2 bg-slate-900/80 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-0.5 rounded truncate text-center">
+                                {st?.city || 'Bénin'}
+                              </span>
+                            </div>
+
+                            <span className="text-[10px] font-bold text-slate-400 uppercase truncate block">
+                              {st?.name}
+                            </span>
+                            <h3 className="font-bold text-slate-900 text-xs sm:text-sm line-clamp-1 mt-0.5">
+                              {p.name}
+                            </h3>
+
+                            {/* Prix Promo */}
+                            <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
+                              <span className="text-sm sm:text-base font-black text-rose-600 tabular-nums">
+                                {formatFCFA(p.promoPrice || p.price)}
+                              </span>
+                              <span className="text-[11px] text-slate-400 line-through tabular-nums">
+                                {formatFCFA(p.price)}
+                              </span>
+                            </div>
+
+                            {/* Barre de progression des ventes style Alibaba */}
+                            <div className="mt-2 space-y-1">
+                              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                <div className="bg-gradient-to-r from-amber-500 to-rose-500 h-1.5 rounded-full w-[78%]"></div>
+                              </div>
+                              <span className="text-[9px] text-slate-500 font-semibold block">
+                                🔥 78% déjà réservés en COD
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickBuy(p);
+                            }}
+                            className="mt-3 w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black rounded-lg transition-colors cursor-pointer text-center block"
+                          >
+                            Acheter en COD
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </section>
             )}
 
-            {/* Featured Local Stores */}
-            <section className="bg-slate-100/70 border-y border-slate-200 py-10">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            {/* 5. ALIBABA FOURNISSEURS LOCAUX & BOUTIQUES OFFICIELLES VÉRIFIÉES */}
+            <section className="bg-slate-50/70 border-b border-slate-200/80 py-8 sm:py-12">
+              <div className="max-w-7xl mx-auto px-3 sm:px-6">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block">
-                      Entrepreneurs Locaux
-                    </span>
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-                      Boutiques vérifiées au Bénin
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Fournisseurs Locaux Agréés</span>
+                    </div>
+                    <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mt-1">
+                      Boutiques et Artisans vérifiés au Bénin
                     </h2>
                   </div>
                   <button
                     onClick={() => setCurrentView('stores')}
-                    className="text-xs font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs hover:shadow-xs"
                   >
                     <span>Toutes les boutiques</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                   {publicStores.map((s) => (
                     <div
                       key={s.id}
                       onClick={() => handleOpenStore(s.slug)}
-                      className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                      className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
                     >
                       <div>
                         <div className="flex items-center gap-3.5 mb-3">
                           <img
                             src={s.logo}
                             alt={s.name}
-                            className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
                           />
-                          <div>
-                            <div className="font-bold text-slate-900 text-sm flex items-center gap-1">
-                              <span>{s.name}</span>
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 text-sm flex items-center gap-1 truncate">
+                              <span className="truncate">{s.name}</span>
                               {s.isVerified && (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-slate-400" />
-                              {s.city}
+                            <span className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{s.city}</span>
                             </span>
                           </div>
                         </div>
@@ -659,8 +1176,8 @@ export default function App() {
                           <span>{s.rating}</span>
                           <span className="text-slate-400 font-normal">({s.reviewCount})</span>
                         </div>
-                        <span className="text-amber-700 font-semibold flex items-center gap-1">
-                          <span>Entrer dans la boutique</span>
+                        <span className="text-amber-700 font-bold flex items-center gap-1 hover:underline">
+                          <span>Visiter la boutique</span>
                           <ArrowRight className="w-3 h-3" />
                         </span>
                       </div>
@@ -670,18 +1187,88 @@ export default function App() {
               </div>
             </section>
 
-            {/* Main Products Catalogue Section */}
-            <section id="catalogue" className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
-                    <span>{t('catalog.available')} ({sortedProducts.length})</span>
-                    <span className="text-[11px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold">
-                      ♾️ {t('catalog.unlimited')}
+            {/* 6. ALIBABA PRODUITS EN VIDÉO DÉMONSTRATIVE */}
+            {videoProducts.length > 0 && (
+              <section className="bg-white border-b border-slate-200/80 py-8 sm:py-12">
+                <div className="max-w-7xl mx-auto px-3 sm:px-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 uppercase tracking-wider">
+                        <Video className="w-4 h-4 text-amber-600" />
+                        <span>Démonstrations en Action</span>
+                      </div>
+                      <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mt-1">
+                        Testez les articles en vidéo avant de commander
+                      </h2>
+                    </div>
+                    <span className="text-xs text-slate-500 hidden sm:inline">
+                      100% Produits réels filmés au Bénin
                     </span>
-                  </h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                    {videoProducts.slice(0, 3).map((vp) => {
+                      const st = stores.find((s) => s.id === vp.storeId);
+                      return (
+                        <div
+                          key={vp.id}
+                          onClick={() => setSelectedProduct(vp)}
+                          className="group bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                        >
+                          <div className="relative aspect-16/9 bg-slate-900 overflow-hidden">
+                            <img
+                              src={vp.images[0]}
+                              alt={vp.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+                            />
+                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                              <div className="w-12 h-12 rounded-full bg-amber-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                <Video className="w-6 h-6 ml-0.5 fill-white" />
+                              </div>
+                            </div>
+                            <span className="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded font-medium">
+                              Voir la vidéo
+                            </span>
+                          </div>
+
+                          <div className="p-4">
+                            <span className="text-[10px] font-bold text-amber-800 uppercase">
+                              {st?.name}
+                            </span>
+                            <h3 className="font-bold text-slate-900 text-sm line-clamp-1 mt-0.5">
+                              {vp.name}
+                            </h3>
+                            <div className="flex justify-between items-baseline mt-2 pt-2 border-t border-slate-100">
+                              <span className="font-extrabold text-slate-900 tabular-nums text-sm">
+                                {formatFCFA(vp.isPromoActive && vp.promoPrice ? vp.promoPrice : vp.price)}
+                              </span>
+                              <span className="text-xs font-bold text-amber-700 group-hover:underline">
+                                Commander en COD &gt;
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Main Products Catalogue Section - ALIBABA GRAND MARCHÉ */}
+            <section id="catalogue" className="max-w-7xl mx-auto px-3 sm:px-6 py-8 sm:py-12">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8 pb-4 border-b border-slate-200/80">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                      {t('catalog.available')} ({sortedProducts.length})
+                    </h2>
+                    <span className="text-[11px] bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full font-extrabold shadow-2xs">
+                      ✓ 100% Paiement à la Réception
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500 mt-1">
-                    {t('catalog.subtitle')}
+                    {t('catalog.subtitle')} · Déballez et inspectez avant de payer en espèces ou Mobile Money
                   </p>
                 </div>
 
@@ -717,7 +1304,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="space-y-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-6">
                     {sortedProducts.slice(0, visibleCatalogLimit).map((p) => {
                       const st = stores.find((s) => s.id === p.storeId);
                       return (
@@ -805,7 +1392,7 @@ export default function App() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-6">
               {sortedProducts.map((p) => {
                 const st = stores.find((s) => s.id === p.storeId);
                 return (
